@@ -27,7 +27,13 @@ func (c *PrefConstraint) Description() string {
 }
 func (c *PrefConstraint) Weight() int {
 	return c.weight
+
 }
+
+func (c *PrefConstraint) Members() []int {
+	return nil
+}
+
 func (c *PrefConstraint) Validate(ec *ExecutionContext) bool {
 	satisfied := ec.pupils[c.refPupil].group == ec.pupils[c.pupil].group
 	if !satisfied {

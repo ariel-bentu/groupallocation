@@ -18,7 +18,7 @@ func RunBackTrack(ec *ExecutionContext) {
 func bt(ec *ExecutionContext, c []int) {
 
 	if ec.Cancel {
-		ec.Cancel = false
+		return
 	}
 	if accept(ec, c) {
 		ec.statusCandidate = c
@@ -45,30 +45,38 @@ func bt(ec *ExecutionContext, c []int) {
 func accept(ec *ExecutionContext, c []int) bool {
 	k := len(c)
 
+	p := ec.pupils[k-1]
+	if p.locked && p.initialGroup != c[k-1] {
+		//return false
+	}
+
 	//prefs
-	for i, v := range c {
-		p := ec.pupils[i]
+	for i := len(c) - 1; i >= 0; i-- {
+		p = ec.pupils[i]
 
-		if p.locked && p.initialGroup != v {
-			return false
-		}
-		inRangeCount := 0
-		refCount := 0
+		if len(p.prefs) > 0 {
 
-		for i = 0; i < len(p.prefs); i++ {
-			if p.prefs[i] < k {
-				inRangeCount++
-				if c[p.prefs[i]] == v {
-					refCount++
+			inRangeCount := 0
+			refCount := 0
+
+			for j := 0; j < len(p.prefs); j++ {
+				if p.prefs[j] < k {
+					inRangeCount++
+					if c[p.prefs[j]] == c[i] {
+						refCount++
+						break
+					}
+				} else {
 					break
 				}
 			}
-		}
 
-		if inRangeCount > 0 && inRangeCount == len(p.prefs) && refCount == 0 {
-			return false
-		}
+			if inRangeCount > 0 && inRangeCount == len(p.prefs) && refCount == 0 {
+				p.unsatisfiedPrefsCount++
+				return false
+			}
 
+		}
 	}
 
 	//constraints
@@ -76,31 +84,51 @@ func accept(ec *ExecutionContext, c []int) bool {
 		csg, ok := constraint.(*SubGroupConstraint)
 
 		if ok && !csg.ValidateNew(ec, c) {
+			csg.unsatisfiedCount++
 			return false
 		}
 	}
 	return true
 }
 
+/*
+func getBackJump(arr []int, currentPupil int) int {
+	currentMax := -1
+	for j := 0; j < len(arr); j++ {
+		if arr[j] < currentPupil {
+			currentMax = max(currentMax, arr[j])
+		}
+	}
+
+	return currentMax
+}
+
+func max(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+*/
 func first(ec *ExecutionContext, c []int) []int {
 	k := len(c)
 	if k == len(ec.pupils) {
 		return nil
 	}
-	return append(c, 0)
+	return append(c, ec.pupils[k].group)
 }
 
 func next(ec *ExecutionContext, s []int) []int {
 	k := len(s) - 1
-	if s[k] == ec.groupsCount-1 {
+	s[k]++
+	if s[k] == ec.groupsCount {
+		s[k] = 0
+	}
+	if s[k] == ec.pupils[k].group {
 		return nil
 	}
 
-	nextS := make([]int, len(s))
-	copy(nextS, s)
-	nextS[k]++
-
-	return nextS
+	return s
 }
 
 func Process(ec *ExecutionContext) {
@@ -169,7 +197,7 @@ func debugInfo(ec *ExecutionContext, c Constraint, satisfied bool) {
 			if sg.girlAlone {
 				ga = "yes"
 			}
-			members = slice2String(sg.Members)
+			members = slice2String(sg.Members())
 			dist = array2String(sg.countForGroup, ec.groupsCount)
 			fmt.Printf("id: %d, Name:%s, Type:%s, members: %s, satisfied:%s, boy/girl-alone:%s/%s, dist:%s\n", c.ID(), c.Description(), tpe, members, yesNo, ba, ga, dist)
 		} else {

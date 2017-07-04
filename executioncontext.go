@@ -39,6 +39,7 @@ type ExecutionContext struct {
 	Constraints    []Constraint
 	ConstraintsAll []Constraint
 	allGroup       *SubGroupConstraint
+	maleGroup      *SubGroupConstraint
 	pupils         []*Pupil
 	dataExcel      *xlsx.File
 
@@ -84,8 +85,20 @@ func (e *ExecutionContext) GetStatusHtml() (string, string) {
 	//return fmt.Sprintf("Interaction Count:%d, progress: %d", e.currentIteration), fmt.Sprintf("%f", time.Now().Sub(e.startTime).Seconds(),
 	//	e.currentIteration/e.iterationCount*100)
 
-	return fmt.Sprintf("Candidate Length:%d, elappsed: %f.0<br>\n%s", e.currentIteration, time.Now().Sub(e.startTime).Seconds(),
-		slice2String(e.statusCandidate)), ""
+	sb := NewStringBuffer()
+	sb.AppendFormat("Candidate Length:%d, elappsed: %f.0<br>\n%s</br>\n", e.currentIteration, time.Now().Sub(e.startTime).Seconds(),
+		slice2String(e.statusCandidate))
+
+	for _, c := range e.Constraints {
+		csg := c.(*SubGroupConstraint)
+		sb.AppendFormat("%s - %d</br>\n", csg.Description(), csg.unsatisfiedCount)
+	}
+	sb.Append("\n</br>-----------------------------------</br>\n")
+	for _, p := range e.pupils {
+		sb.AppendFormat("%s - %d</br>\n", p.name, p.unsatisfiedPrefsCount)
+	}
+
+	return sb.ToString(), ""
 }
 func (e *ExecutionContext) Finish() {
 	e.done = true
@@ -149,14 +162,15 @@ func Initialize() *ExecutionContext {
 		g := NewSubGroupConstraint(id, desc, v == UNITE_VALUE, w)
 		ec.Constraints = append(ec.Constraints, g)
 	}
-	gMale := NewSubGroupConstraint(i, "בנים", false, 70).(*SubGroupConstraint)
-	ec.Constraints = append(ec.Constraints, gMale)
+	ec.maleGroup = NewSubGroupConstraint(i, "בנים", false, 70).(*SubGroupConstraint)
+	ec.Constraints = append(ec.Constraints, ec.maleGroup)
 	i++
 	ec.allGroup = NewSubGroupConstraint(i, "כולם", false, 200).(*SubGroupConstraint)
 	ec.Constraints = append(ec.Constraints, ec.allGroup)
 
 	//Init Pupils
 	pupilsSheet := ec.getSheet("Pupils")
+	assign := 0
 
 	for i := 1; i < len(pupilsSheet.Rows); i++ {
 
@@ -164,32 +178,131 @@ func Initialize() *ExecutionContext {
 			break
 		}
 		p := new(Pupil)
+		p.group = assign
+		assign++
+		if assign == ec.groupsCount {
+			assign = 0
+		}
 		ec.pupils = append(ec.pupils, p)
 		name, _ := pupilsSheet.Cell(i, CELL_NAME).String()
 		p.name = name
-		pupilIndex := len(ec.pupils) - 1
+		//		pupilIndex := len(ec.pupils) - 1
 
 		//gender:
 		if v, _ := pupilsSheet.Cell(i, CELL_GENDER).Int(); v == 1 {
 			p.isMale = true
-			gMale.AddMember(pupilIndex, ec)
 		}
-		ec.allGroup.AddMember(pupilIndex, ec)
 
-		//todo initial group
 		v, _ := pupilsSheet.Cell(i, CELL_INITIAL).Int()
 		if v > 0 {
-			//p.locked = true
-			//p.initialGroup = v - 1
+			p.locked = true
+			p.initialGroup = v - 1
 		}
 	}
-	for i_0based, p := range ec.pupils {
+
+	for _, p := range ec.pupils {
+		p.groupsCount = 0
+	}
+
+	initializePreferences(ec, pupilsSheet)
+	InitializeGroupsMembers(ec, pupilsSheet)
+
+	sort.Sort(ByGroupCount(ec.pupils))
+
+	//for _, p := range ec.pupils {
+	//		p.groupsCount = 0
+	//}
+
+	//since indexes moved, recreate
+	initializePreferences(ec, pupilsSheet)
+	InitializeGroupsMembers(ec, pupilsSheet)
+
+	for _, c := range ec.Constraints {
+		csg, ok := c.(*SubGroupConstraint)
+		if ok {
+			csg.AfterInit(ec)
+		}
+	}
+
+	validateConflicts(ec)
+
+	//sort.Sort(ByMembers(ec.Constraints))
+	//ec.Reshuffel()
+	//ec.balancePupils()
+
+	return ec
+}
+
+func validateConflicts(ec *ExecutionContext) {
+	for i := 0; i < len(ec.Constraints); i++ {
+		g1, _ := ec.Constraints[i].(*SubGroupConstraint)
+		if g1.IsUnite {
+			for j := 0; j < len(ec.Constraints); j++ {
+				g2, _ := ec.Constraints[j].(*SubGroupConstraint)
+				if i != j && !g2.IsUnite {
+					boysIncluded := 0
+					girlsIncluded := 0
+					if g1.ID() == 23 && g2.ID() == 3 {
+						girlsIncluded = 0
+					}
+					for _, m := range g2.Members() {
+						if g1.IsMember(m) {
+							if ec.pupils[m].IsMale() {
+								boysIncluded++
+							} else {
+								girlsIncluded++
+							}
+						}
+					}
+					included := boysIncluded + girlsIncluded
+					if included >= 2 {
+						if included > len(g2.Members())/2 {
+							//found a conflict g2 is completed included in g1
+							fmt.Printf("Group %d is unite group and is a too bigger subset of the seperatation group '%d' - it is being disabled</br>\n", g1.ID(), g2.ID())
+							g1.disabled = true
+						}
+						if boysIncluded > g2.boysCount-g2.minBoys {
+							fmt.Printf("Group %d is unite group which include %d boys, which prevents spreading the boys evenly in group %d  - boys even spearding is disabled</br>\n", g1.ID(), boysIncluded, g2.ID())
+
+							g2.minBoys = 0
+						}
+						if girlsIncluded > len(g2.Members())-g2.boysCount-g2.minGirls {
+							fmt.Printf("Group %d is unite group which include %d girls, which prevents spreading the girls evenly in group %d  - girls even spearding is disabled</br>\n", g1.ID(), girlsIncluded, g2.ID())
+
+							g2.minGirls = 0
+						}
+					}
+				}
+			}
+
+		} else if len(g1.Members()) == 2 {
+			p1 := ec.pupils[g1.Members()[0]]
+			p2 := ec.pupils[g1.Members()[1]]
+
+			if len(p1.prefs) == 1 && p1.prefs[0] == g1.Members()[1] ||
+				len(p2.prefs) == 1 && p2.prefs[0] == g1.Members()[0] {
+				fmt.Printf("Pupil '%s' and '%s' are members of '%s' - a seperation group and have eachother as preference", p1.name, p2.name, g1.Description())
+
+			}
+		}
+
+	}
+}
+
+func initializePreferences(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
+
+	for i := 1; i <= len(ec.pupils); i++ {
+
+		name, _ := pupilsSheet.Cell(i, CELL_NAME).String()
+		pIndex := ec.findPupil(name)
+		p := ec.pupils[pIndex]
+		p.prefs = nil
 		//preferences
-		pupilIndex := i_0based
+		//		pupilIndex := i_0based
 		var pupilPrefConstraint [3]int
 
 		for j := 0; j < NUM_OF_PREF; j++ {
-			refPupil, _ := pupilsSheet.Cell(i_0based+1, CELL_PREF+j).String()
+			refPupil, _ := pupilsSheet.Cell(i, CELL_PREF+j).String()
 
 			refIndex := ec.findPupil(refPupil)
 			if refIndex != -1 {
@@ -199,6 +312,7 @@ func Initialize() *ExecutionContext {
 				//ec.Constraints = append(ec.Constraints, pref)
 				p.prefs = append(p.prefs, refIndex)
 				pupilPrefConstraint[j] = len(ec.Constraints) - 1
+				ec.pupils[refIndex].groupsCount++
 			} else {
 				//adds the weight of the missing constrains to #1,2
 				if j == 1 {
@@ -212,36 +326,58 @@ func Initialize() *ExecutionContext {
 			}
 
 		}
+	}
+}
 
-		grps, _ := pupilsSheet.Cell(i_0based+1, CELL_SUBGROUP).String()
+func InitializeGroupsMembers(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
+
+	for _, c := range ec.Constraints {
+		csg, ok := c.(*SubGroupConstraint)
+		if ok {
+			csg.members = nil
+			csg.boysCount = 0
+		}
+	}
+
+	for i := 1; i <= len(ec.pupils); i++ {
+
+		name, _ := pupilsSheet.Cell(i, CELL_NAME).String()
+		pupilIndex := ec.findPupil(name)
+		p := ec.pupils[pupilIndex]
+
+		ec.allGroup.AddMember(pupilIndex, ec)
+		if p.IsMale() {
+			ec.maleGroup.AddMember(pupilIndex, ec)
+			p.groupsCount++
+		}
+
+		grps, _ := pupilsSheet.Cell(i, CELL_SUBGROUP).String()
 		if grps != "" {
 			subgroupsCellArray := strings.Split(grps, ",")
 			for _, subGroupID := range subgroupsCellArray {
-				subGroupIdInt, _ := strconv.Atoi(subGroupID)
+				subGroupIdInt, _ := strconv.Atoi(strings.TrimSpace(subGroupID))
 				if subGroupIdInt < 1 {
 					//todo
 					MsgBox("תת קבוצה מיוצגת על ידי מספר מ - 1 עד ")
-					return nil
+					return
 				}
 				grpIndex := ec.findGroup(subGroupIdInt)
 				sg := ec.Constraints[grpIndex].(*SubGroupConstraint)
 				sg.AddMember(pupilIndex, ec)
+				p.groupsCount++
 			}
 		}
-
 	}
-	for _, c := range ec.Constraints {
-		csg, ok := c.(*SubGroupConstraint)
-		if ok {
-			csg.AfterInit(ec)
+}
+
+func extractBackJumping(currentIndex int, currentMax int, arr []int) int {
+
+	for j := 0; j < len(arr); j++ {
+		if arr[j] > currentMax && arr[j] < currentIndex {
+			currentMax = arr[j]
 		}
 	}
-
-	sort.Sort(ByWeight(ec.Constraints))
-	//ec.Reshuffel()
-	//ec.balancePupils()
-
-	return ec
+	return currentMax
 }
 
 func (ec *ExecutionContext) Next() bool {
@@ -401,7 +537,7 @@ func (ec *ExecutionContext) getSheet(name string) *xlsx.Sheet {
 	if ec.dataExcel == nil {
 		//MsgBox("Code must be called from a Data excel")
 		var err error
-		ec.dataExcel, err = xlsx.OpenFile("c:/temp/file.xlsx")
+		ec.dataExcel, err = xlsx.OpenFile("c:/temp/file4.xlsx")
 		if err != nil {
 			return nil
 		}
