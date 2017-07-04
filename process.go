@@ -1,8 +1,14 @@
 package main
 
-import (
-	"fmt"
-)
+type PartialAssignment []int
+
+func (pa PartialAssignment) Count() int {
+	return len(pa)
+}
+
+func (pa PartialAssignment) GetGroup(pupil int) int {
+	return pa[pupil]
+}
 
 func RunBackTrack(ec *ExecutionContext) {
 	bt(ec, first(ec, nil))
@@ -46,7 +52,7 @@ func accept(ec *ExecutionContext, c []int) bool {
 	k := len(c)
 
 	p := ec.pupils[k-1]
-	if p.locked && p.initialGroup != c[k-1] {
+	if p.locked && p.lockedGroup != c[k-1] {
 		//return false
 	}
 
@@ -80,10 +86,9 @@ func accept(ec *ExecutionContext, c []int) bool {
 	}
 
 	//constraints
-	for _, constraint := range ec.Constraints {
-		csg, ok := constraint.(*SubGroupConstraint)
+	for _, csg := range ec.Constraints {
 
-		if ok && !csg.ValidateNew(ec, c) {
+		if !csg.ValidateNew(ec, PartialAssignment(c)) {
 			csg.unsatisfiedCount++
 			return false
 		}
@@ -115,7 +120,7 @@ func first(ec *ExecutionContext, c []int) []int {
 	if k == len(ec.pupils) {
 		return nil
 	}
-	return append(c, ec.pupils[k].group)
+	return append(c, ec.pupils[k].startGroup)
 }
 
 func next(ec *ExecutionContext, s []int) []int {
@@ -124,87 +129,9 @@ func next(ec *ExecutionContext, s []int) []int {
 	if s[k] == ec.groupsCount {
 		s[k] = 0
 	}
-	if s[k] == ec.pupils[k].group {
+	if s[k] == ec.pupils[k].startGroup {
 		return nil
 	}
 
 	return s
-}
-
-func Process(ec *ExecutionContext) {
-
-	for ec.Next() {
-		satisfied := true
-		for _, c := range ec.Constraints {
-			sat1 := c.Validate(ec)
-			satisfied = satisfied && sat1
-
-			debugInfo(ec, c, sat1)
-
-		}
-
-		//debug
-		if ec.currentIteration == 10000 {
-			for i, p := range ec.pupils {
-				fmt.Printf("Pupil: %d, name:%s, Score:%d, group:%d\n", i, p.name, p.score, p.group)
-			}
-		}
-
-		if satisfied {
-			break
-		}
-	}
-
-	ec.Finish()
-}
-
-/*
-* DEBUG ************************************
- */
-/*
-func slice2String(arr []int) string {
-	return strings.Trim(strings.Replace(fmt.Sprint(arr), " ", ",", -1), "[]")
-}
-func array2String(arr [MAX_NUM_OF_GROUPS]int, n int) string {
-	ret := ""
-	for i := 0; i < n; i++ {
-		ret += fmt.Sprintf(", %d", arr[i])
-	}
-	return ret
-}
-*/
-func debugInfo(ec *ExecutionContext, c Constraint, satisfied bool) {
-	if ec.currentIteration == 10000 {
-		ba := "no"
-		ga := "no"
-		yesNo := "no"
-		if satisfied {
-			yesNo = "yes"
-		}
-		tpe := "pref"
-		members := ""
-		dist := ""
-		sg, ok := c.(*SubGroupConstraint)
-		if ok {
-			if sg.IsUnite {
-				tpe = "UniteGroup"
-			} else {
-				tpe = "SeprateGroup"
-			}
-			if sg.boyAlone {
-				ba = "yes"
-			}
-			if sg.girlAlone {
-				ga = "yes"
-			}
-			members = slice2String(sg.Members())
-			dist = array2String(sg.countForGroup, ec.groupsCount)
-			fmt.Printf("id: %d, Name:%s, Type:%s, members: %s, satisfied:%s, boy/girl-alone:%s/%s, dist:%s\n", c.ID(), c.Description(), tpe, members, yesNo, ba, ga, dist)
-		} else {
-			pref, ok := c.(*PrefConstraint)
-			if ok {
-				fmt.Printf("id: %d, Pupil:%d, Type:Pref %d, RefPupil: %d, satisfied:%s %d,%d\n", pref.ID(), pref.pupil, pref.prefPrio, pref.refPupil, yesNo, ec.pupils[pref.pupil].group, ec.pupils[pref.refPupil].group)
-			}
-		}
-	}
 }

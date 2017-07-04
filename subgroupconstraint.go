@@ -34,7 +34,7 @@ type SubGroupConstraint struct {
 	disabled         bool
 }
 
-func NewSubGroupConstraint(id int, desc string, isUnite bool, weight int) Constraint {
+func NewSubGroupConstraint(id int, desc string, isUnite bool, weight int) *SubGroupConstraint {
 	return &SubGroupConstraint{id: id, desc: desc, IsUnite: isUnite, weight: weight, Level: 1}
 }
 
@@ -100,6 +100,8 @@ func (sgc *SubGroupConstraint) Weight() int {
 func (sgc *SubGroupConstraint) Members() []int {
 	return sgc.members
 }
+
+/*
 func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
 	if c.Members() == nil || c.Level == 0 {
 		return true
@@ -194,14 +196,16 @@ func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
 	c.satisfied = !c.boyAlone && !c.girlAlone && !oversized
 	return c.satisfied
 }
-
-func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate []int) bool {
+*/
+func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candidate) bool {
 	if c.Members() == nil || c.Level == 0 || c.disabled {
+		c.satisfied = true
 		return true
 	}
-	k := len(candidate)
+	k := candidate.Count()
 
 	if k < 2 || !c.IsUnite && k <= int(math.Ceil(c.maxAllowed)) {
+		c.satisfied = true
 		return true
 	}
 
@@ -215,7 +219,7 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate []int) 
 	for i := 0; i < len(c.Members()); i++ {
 		if c.Members()[i] < k {
 			p := ec.pupils[c.Members()[i]]
-			group := candidate[c.Members()[i]]
+			group := candidate.GetGroup(c.Members()[i])
 
 			if p.IsMale() {
 				c.boysForGroup[group]++
@@ -238,6 +242,7 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate []int) 
 				count++
 			}
 		}
+		c.satisfied = true
 		return true
 	}
 
@@ -265,6 +270,7 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate []int) 
 		}
 
 	}
+	c.satisfied = true
 	return true
 }
 

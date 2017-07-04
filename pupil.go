@@ -3,11 +3,10 @@ package main
 type Pupil struct {
 	name                  string
 	isMale                bool
-	group                 int
-	score                 int
+	startGroup            int
 	prefs                 []int
 	groupBestScore        int
-	initialGroup          int
+	lockedGroup           int
 	locked                bool
 	numOfMoves            int32
 	groupsCount           int

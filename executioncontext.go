@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +24,19 @@ const CELL_INITIAL_WEIGHT = 9
 const CELL_COMP_PROPOSAL = 10
 const CELL_NUM_OF_MOVES = 11
 
+type Candidate interface {
+	Count() int
+	GetGroup(pupil int) int
+}
+
+func (ec *ExecutionContext) Count() int {
+	return len(ec.pupils)
+}
+
+func (ec *ExecutionContext) GetGroup(pupil int) int {
+	return ec.pupils[pupil].groupBestScore
+}
+
 //Constrain is a...
 type ExecutionContext struct {
 	id        string
@@ -36,8 +48,7 @@ type ExecutionContext struct {
 
 	groupsCount    int
 	iterationCount int
-	Constraints    []Constraint
-	ConstraintsAll []Constraint
+	Constraints    []*SubGroupConstraint
 	allGroup       *SubGroupConstraint
 	maleGroup      *SubGroupConstraint
 	pupils         []*Pupil
@@ -90,8 +101,8 @@ func (e *ExecutionContext) GetStatusHtml() (string, string) {
 		slice2String(e.statusCandidate))
 
 	for _, c := range e.Constraints {
-		csg := c.(*SubGroupConstraint)
-		sb.AppendFormat("%s - %d</br>\n", csg.Description(), csg.unsatisfiedCount)
+
+		sb.AppendFormat("%s - %d</br>\n", c.Description(), c.unsatisfiedCount)
 	}
 	sb.Append("\n</br>-----------------------------------</br>\n")
 	for _, p := range e.pupils {
@@ -162,10 +173,10 @@ func Initialize() *ExecutionContext {
 		g := NewSubGroupConstraint(id, desc, v == UNITE_VALUE, w)
 		ec.Constraints = append(ec.Constraints, g)
 	}
-	ec.maleGroup = NewSubGroupConstraint(i, "בנים", false, 70).(*SubGroupConstraint)
+	ec.maleGroup = NewSubGroupConstraint(i, "בנים", false, 70)
 	ec.Constraints = append(ec.Constraints, ec.maleGroup)
 	i++
-	ec.allGroup = NewSubGroupConstraint(i, "כולם", false, 200).(*SubGroupConstraint)
+	ec.allGroup = NewSubGroupConstraint(i, "כולם", false, 200)
 	ec.Constraints = append(ec.Constraints, ec.allGroup)
 
 	//Init Pupils
@@ -178,7 +189,7 @@ func Initialize() *ExecutionContext {
 			break
 		}
 		p := new(Pupil)
-		p.group = assign
+		p.startGroup = assign
 		assign++
 		if assign == ec.groupsCount {
 			assign = 0
@@ -196,7 +207,7 @@ func Initialize() *ExecutionContext {
 		v, _ := pupilsSheet.Cell(i, CELL_INITIAL).Int()
 		if v > 0 {
 			p.locked = true
-			p.initialGroup = v - 1
+			p.lockedGroup = v - 1
 		}
 	}
 
@@ -218,10 +229,7 @@ func Initialize() *ExecutionContext {
 	InitializeGroupsMembers(ec, pupilsSheet)
 
 	for _, c := range ec.Constraints {
-		csg, ok := c.(*SubGroupConstraint)
-		if ok {
-			csg.AfterInit(ec)
-		}
+		c.AfterInit(ec)
 	}
 
 	validateConflicts(ec)
@@ -235,10 +243,10 @@ func Initialize() *ExecutionContext {
 
 func validateConflicts(ec *ExecutionContext) {
 	for i := 0; i < len(ec.Constraints); i++ {
-		g1, _ := ec.Constraints[i].(*SubGroupConstraint)
+		g1 := ec.Constraints[i]
 		if g1.IsUnite {
 			for j := 0; j < len(ec.Constraints); j++ {
-				g2, _ := ec.Constraints[j].(*SubGroupConstraint)
+				g2 := ec.Constraints[j]
 				if i != j && !g2.IsUnite {
 					boysIncluded := 0
 					girlsIncluded := 0
@@ -332,11 +340,8 @@ func initializePreferences(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
 func InitializeGroupsMembers(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
 
 	for _, c := range ec.Constraints {
-		csg, ok := c.(*SubGroupConstraint)
-		if ok {
-			csg.members = nil
-			csg.boysCount = 0
-		}
+		c.members = nil
+		c.boysCount = 0
 	}
 
 	for i := 1; i <= len(ec.pupils); i++ {
@@ -362,166 +367,12 @@ func InitializeGroupsMembers(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
 					return
 				}
 				grpIndex := ec.findGroup(subGroupIdInt)
-				sg := ec.Constraints[grpIndex].(*SubGroupConstraint)
+				sg := ec.Constraints[grpIndex]
 				sg.AddMember(pupilIndex, ec)
 				p.groupsCount++
 			}
 		}
 	}
-}
-
-func extractBackJumping(currentIndex int, currentMax int, arr []int) int {
-
-	for j := 0; j < len(arr); j++ {
-		if arr[j] > currentMax && arr[j] < currentIndex {
-			currentMax = arr[j]
-		}
-	}
-	return currentMax
-}
-
-func (ec *ExecutionContext) Next() bool {
-
-	if ec.currentIteration == 0 {
-		ec.ConstraintsAll = ec.Constraints[:]
-	}
-
-	//get total score
-	total := 0
-	for _, p := range ec.pupils {
-		total += p.score
-	}
-
-	if total > ec.bestTotal {
-		//presist the state
-		for _, p := range ec.pupils {
-			p.groupBestScore = p.group
-		}
-	}
-
-	ec.currentIteration++
-	if ec.currentIteration >= ec.iterationCount {
-		return false
-	}
-
-	if total == 0 {
-		//perfect
-		return false
-	}
-
-	if ec.currentIteration > 10000 {
-		ec.levelChangeIteration++
-		if ec.levelChangeIteration == 50000 {
-			ec.levelChangeIteration = 0
-			//c := ec.Constraints[0]
-			//debug
-			//fmt.Printf("Drop Constraint %s, weight=%d\n", c.Description(), c.Weight())
-			//ec.Constraints = ec.Constraints[1:len(ec.Constraints)]
-			ec.Reshuffel()
-			ec.balancePupils()
-		}
-	}
-
-	if ec.groupsCount > 2 {
-		/*todo		g1 := getWorstGroup()
-		g2 := getRandomGroup()
-		for g1 == g2 {
-			g2 = getRandomGroup()
-		}
-
-		swapPupil(g1, g2, 1)
-		*/
-	} else {
-		ec.swapPupil(0, 1)
-	}
-
-	//reset pupils scores
-	for _, p := range ec.pupils {
-		p.score = 0
-	}
-
-	return true
-}
-
-func (ec *ExecutionContext) Reshuffel() {
-	for _, p := range ec.pupils {
-		p.group = rand.Intn(ec.groupsCount)
-	}
-}
-
-func (ec *ExecutionContext) swapPupil(grpIndex1 int, grpIndex2 int) {
-	var worstScore1 = 0
-	var worstScore2 = 0
-
-	worstScore1 = ec.findRandonBottomOf(grpIndex1, false)
-	worstScore2 = ec.findRandonBottomOf(grpIndex2, false)
-	//	}
-	//	if iterationIndex > 10000 && iterationIndex < 10100 {
-	//		fmt.Printf("swap %d with %d\n", worstScore1, worstScore2)
-	//	}
-	ec.pupils[worstScore1].group = grpIndex2
-	ec.pupils[worstScore2].group = grpIndex1
-
-	ec.pupils[worstScore1].numOfMoves++
-	ec.pupils[worstScore2].numOfMoves++
-
-}
-
-func (ec *ExecutionContext) movePupil(srcGrpIndex int, destGrpIndex int) {
-
-	worstScoreSrc := ec.findRandonBottomOf(srcGrpIndex, true)
-
-	ec.pupils[worstScoreSrc].group = destGrpIndex
-
-}
-
-const BOTOM_WORST_COUNT = 6
-
-func (ec *ExecutionContext) findRandonBottomOf(groupInx int, worst bool) int {
-
-	var bottomPupils [BOTOM_WORST_COUNT]int
-
-	for i, p := range ec.pupils {
-		if p.group == groupInx && !p.locked {
-			for j := 0; j < BOTOM_WORST_COUNT; j++ {
-				if bottomPupils[j] > 0 {
-					if p.score < ec.pupils[bottomPupils[j]-1].score {
-						//replaces him && push the rest
-
-						for k := BOTOM_WORST_COUNT - 1; k >= j+1; k-- {
-							bottomPupils[k] = bottomPupils[k-1]
-						}
-						bottomPupils[j] = i + 1
-						break
-					}
-				} else {
-					bottomPupils[j] = i + 1
-					break
-				}
-			}
-		}
-	}
-
-	ignore := 0
-	//chooses one randomly
-	for i := BOTOM_WORST_COUNT - 1; i >= 1; i-- {
-		if bottomPupils[i] == 0 {
-			ignore++
-		} else {
-			break
-		}
-	}
-	if BOTOM_WORST_COUNT == ignore {
-		return rand.Intn(len(ec.pupils))
-	}
-	if worst {
-		return bottomPupils[0] - 1
-	}
-
-	rng := BOTOM_WORST_COUNT - ignore
-	retInx := rand.Intn(rng)
-	return bottomPupils[retInx] - 1
-
 }
 
 func (ec *ExecutionContext) findPupil(name string) int {
@@ -553,12 +404,10 @@ func (ec *ExecutionContext) getSheet(name string) *xlsx.Sheet {
 
 func (ec *ExecutionContext) findGroup(id int) int {
 	for i, c := range ec.Constraints {
-		sgc, ok := c.(*SubGroupConstraint)
-		if ok {
-			if sgc.ID() == id {
-				return i
-			}
+		if c.ID() == id {
+			return i
 		}
+
 	}
 	return -1
 }
@@ -572,54 +421,12 @@ func getColor(group int) string {
 	return ""
 }
 
-func (ec *ExecutionContext) balancePupils() {
-	//Balance groups
-	//balances classes
-	foundOverSize := true
-	var src = 0
-	var dest = 0
-
-	//todo copyProposal(1)
-
-	for foundOverSize {
-		foundOverSize = false
-		ec.allGroup.Validate(ec)
-		for i := 0; i < ec.groupsCount; i++ {
-			if ec.allGroup.oversizedForGroup[i] {
-				src = i
-				foundOverSize = true
-				minimalCount := 9999
-				dest = 0
-				//look for the group with least members
-				for j := 0; j < ec.groupsCount; j++ {
-					if ec.allGroup.countForGroup[j] < minimalCount {
-						minimalCount = ec.allGroup.countForGroup[j]
-						dest = j
-					}
-				}
-
-				break
-			}
-		}
-
-		if foundOverSize {
-			//move one member
-			ec.movePupil(src, dest)
-		}
-	}
-}
-
 func (ec *ExecutionContext) printHtml() string {
 	res := NewStringBuffer()
 	res.Clear()
 
-	//restore best option:
-	for _, p := range ec.pupils {
-		p.group = p.groupBestScore
-	}
-
 	for _, c := range ec.Constraints {
-		c.Validate(ec)
+		c.ValidateNew(ec, ec)
 	}
 
 	//Print list of Pupils and their preferences
@@ -627,7 +434,7 @@ func (ec *ExecutionContext) printHtml() string {
 	res.Append("<table><tr><th>#</th><th>שם</th><th>בחירה 1</th><th>בחירה 2</th><th>בחירה 3</th></tr>\n")
 
 	for inx, p := range ec.pupils {
-		colorName := getColor(p.group)
+		colorName := getColor(p.groupBestScore)
 
 		//name
 		res.Append(fmt.Sprintf("<tr><td>%d</td><td bgcolor=%s>%s</td>", inx+1, colorName, p.name))
@@ -635,7 +442,7 @@ func (ec *ExecutionContext) printHtml() string {
 
 		for i := 0; i < len(p.prefs); i++ {
 			refP := ec.pupils[p.prefs[i]]
-			colorPref := getColor(refP.group)
+			colorPref := getColor(refP.groupBestScore)
 			res.Append(fmt.Sprintf("<td bgcolor=\"%s\">%s</td>", colorPref, refP.name))
 		}
 
@@ -656,21 +463,16 @@ func (ec *ExecutionContext) printHtml() string {
 	}
 	res.Append("</tr>\n")
 
-	for _, cc := range ec.Constraints {
-		c, ok := cc.(*SubGroupConstraint)
-		if ok {
-			groupType := "איחוד"
-			if !c.IsUnite {
-				groupType = "פירוד"
-			}
-			res.AppendFormat("<tr><td>%d</td><td>%s</td><td>%s</td>", c.ID(), c.Description(), groupType)
-			for i := 0; i < ec.groupsCount; i++ {
-				res.AppendFormat("<td>%d - (%d)</td>", c.countForGroup[i], c.boysForGroup[i])
-			}
-			res.Append("</tr>\n")
-
-			//			res.AppendFormat(c.printOneInfo(ec))
+	for _, c := range ec.Constraints {
+		groupType := "איחוד"
+		if !c.IsUnite {
+			groupType = "פירוד"
 		}
+		res.AppendFormat("<tr><td>%d</td><td>%s</td><td>%s</td>", c.ID(), c.Description(), groupType)
+		for i := 0; i < ec.groupsCount; i++ {
+			res.AppendFormat("<td>%d - (%d)</td>", c.countForGroup[i], c.boysForGroup[i])
+		}
+		res.Append("</tr>\n")
 	}
 
 	res.Append("</table></br>\n")
@@ -679,19 +481,16 @@ func (ec *ExecutionContext) printHtml() string {
 
 	res.Append("<h1>Conflicts</h1></br>\n")
 
-	for _, cc := range ec.Constraints {
-		c, ok := cc.(*SubGroupConstraint)
-		if ok {
-			if msg := c.Message(ec); msg != "" {
-				res.AppendFormat("* %s </br>\n", msg)
-			}
+	for _, c := range ec.Constraints {
+		if msg := c.Message(ec); msg != "" {
+			res.AppendFormat("* %s </br>\n", msg)
 		}
 	}
 
 	for _, p := range ec.pupils {
 		count := 0
 		for i := 0; i < len(p.prefs); i++ {
-			if p.group == ec.pupils[p.prefs[i]].group {
+			if p.groupBestScore == ec.pupils[p.prefs[i]].groupBestScore {
 				count++
 			}
 		}
