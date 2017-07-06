@@ -15,6 +15,7 @@ type SubGroupConstraint struct {
 	Level                       int
 	weight                      int
 	members                     []int
+	originalCount               int
 	maxAllowed                  float64
 	stillAllowOneToBeOneTooMany bool
 
@@ -66,6 +67,8 @@ func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext) {
 		//c.minBoys = 0
 		//c.minGirls = 0
 	} else {
+		c.originalCount = len(c.members)
+
 		//add to members pupils that all their perfs are in this unite group
 		for pupilInx, p := range ec.pupils {
 			count := 0
@@ -83,7 +86,6 @@ func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext) {
 				}
 			}
 		}
-
 	}
 }
 
@@ -198,7 +200,7 @@ func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
 }
 */
 func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candidate) bool {
-	if c.Members() == nil || c.Level == 0 || c.disabled {
+	if c.Members() == nil || c.disabled {
 		c.satisfied = true
 		return true
 	}
@@ -209,28 +211,7 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 		return true
 	}
 
-	for i := 0; i < ec.groupsCount; i++ {
-		c.countForGroup[i] = 0
-		c.boysForGroup[i] = 0
-		c.girlsForGroup[i] = 0
-	}
-
-	left := 0
-	for i := 0; i < len(c.Members()); i++ {
-		if c.Members()[i] < k {
-			p := ec.pupils[c.Members()[i]]
-			group := candidate.GetGroup(c.Members()[i])
-
-			if p.IsMale() {
-				c.boysForGroup[group]++
-			} else {
-				c.girlsForGroup[group]++
-			}
-			c.countForGroup[group]++
-		} else {
-			left++
-		}
-	}
+	left := c.calculateMembersCounts(ec, candidate)
 
 	count := 0
 	if c.IsUnite {
@@ -272,6 +253,33 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 	}
 	c.satisfied = true
 	return true
+}
+
+func (c *SubGroupConstraint) calculateMembersCounts(ec *ExecutionContext, candidate Candidate) int {
+	k := candidate.Count()
+	for i := 0; i < ec.groupsCount; i++ {
+		c.countForGroup[i] = 0
+		c.boysForGroup[i] = 0
+		c.girlsForGroup[i] = 0
+	}
+
+	left := 0
+	for i := 0; i < len(c.Members()); i++ {
+		if c.Members()[i] < k {
+			p := ec.pupils[c.Members()[i]]
+			group := candidate.GetGroup(c.Members()[i])
+
+			if p.IsMale() {
+				c.boysForGroup[group]++
+			} else {
+				c.girlsForGroup[group]++
+			}
+			c.countForGroup[group]++
+		} else {
+			left++
+		}
+	}
+	return left
 }
 
 func (c *SubGroupConstraint) IsMember(pupil int) bool {

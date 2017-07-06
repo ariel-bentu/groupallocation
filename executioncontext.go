@@ -242,17 +242,54 @@ func Initialize() *ExecutionContext {
 }
 
 func validateConflicts(ec *ExecutionContext) {
+	//check if two unite sub-groups overlap and if yes, tigh them together
+	merged := true
+	for merged {
+		merged = false
+		for i := 0; i < len(ec.Constraints); i++ {
+			g1 := ec.Constraints[i]
+			if g1.disabled {
+				continue
+			}
+			if g1.IsUnite {
+				for j := 0; j < len(ec.Constraints); j++ {
+					g2 := ec.Constraints[j]
+					if g2.disabled {
+						continue
+					}
+					if i != j && g2.IsUnite {
+						for _, m := range g2.Members() {
+							if g1.IsMember(m) {
+								//Found overlap
+								fmt.Printf("Unite group %d overlaps with unite group '%d' - at least %s is in both. merging groups</br>\n", g1.ID(), g2.ID(), ec.pupils[m].name)
+								merged = true
+								mergeSubGroups(ec, i, j)
+								break
+							}
+						}
+					}
+				}
+			}
+			if merged {
+				break
+			}
+		}
+	}
+
 	for i := 0; i < len(ec.Constraints); i++ {
 		g1 := ec.Constraints[i]
+		if g1.disabled {
+			continue
+		}
 		if g1.IsUnite {
 			for j := 0; j < len(ec.Constraints); j++ {
 				g2 := ec.Constraints[j]
+				if g2.disabled {
+					continue
+				}
 				if i != j && !g2.IsUnite {
 					boysIncluded := 0
 					girlsIncluded := 0
-					if g1.ID() == 23 && g2.ID() == 3 {
-						girlsIncluded = 0
-					}
 					for _, m := range g2.Members() {
 						if g1.IsMember(m) {
 							if ec.pupils[m].IsMale() {
@@ -295,6 +332,31 @@ func validateConflicts(ec *ExecutionContext) {
 		}
 
 	}
+}
+
+func mergeSubGroups(ec *ExecutionContext, g1 int, g2 int) {
+	ec.Constraints[g1].desc = fmt.Sprintf("מיזוג: '%s' עם '%s'", ec.Constraints[g1].desc, ec.Constraints[g2].desc)
+	for _, m := range ec.Constraints[g2].members {
+		if !ec.Constraints[g1].IsMember(m) {
+			ec.Constraints[g1].AddMember(m, ec)
+		}
+	}
+
+	//removeConstraint(g2, ec)
+	ec.Constraints[g2].disabled = true
+
+	ec.Constraints[g1].AfterInit(ec)
+}
+
+func removeConstraint(cIndex int, ec *ExecutionContext) {
+	a := ec.Constraints
+	i, j := cIndex, cIndex+1
+
+	copy(a[i:], a[j:])
+	for k, n := len(a)-j+i, len(a); k < n; k++ {
+		a[k] = nil
+	}
+	ec.Constraints = a[:len(a)-j+i]
 }
 
 func initializePreferences(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
@@ -426,11 +488,44 @@ func (ec *ExecutionContext) printHtml() string {
 	res.Clear()
 
 	for _, c := range ec.Constraints {
+		c.calculateMembersCounts(ec, ec)
 		c.ValidateNew(ec, ec)
 	}
 
+	res.Append("<H2> כיתות </H2></br>\n")
+	res.Append("<table border=1><tr><th>#</th>")
+	for i := 0; i < ec.groupsCount; i++ {
+		res.AppendFormat("<th>כיתה %d</th>", i+1)
+	}
+	res.Append("</tr>\n")
+
+	var list [10][]int //todo
+	for i, p := range ec.pupils {
+		list[p.groupBestScore] = append(list[p.groupBestScore], i)
+	}
+
+	max := 0
+	for i := 0; i < ec.groupsCount; i++ {
+		sort.Sort(&SortPupilList{list: list[i], ec: ec})
+		if len(list[i]) > max {
+			max = len(list[i])
+		}
+	}
+	for i := 0; i < max; i++ {
+		res.AppendFormat("<tr><td>%d</td>", i+1)
+		for j := 0; j < ec.groupsCount; j++ {
+			name := ""
+			if len(list[j]) > i {
+				name = ec.pupils[list[j][i]].name
+			}
+			res.AppendFormat("<td>%s</td>", name)
+		}
+		res.Append("</tr>")
+	}
+	res.Append("</table></br></br>\n\n")
+
 	//Print list of Pupils and their preferences
-	res.Append("<H2> List </H2></br>\n")
+	res.Append("<H2> מפת העדפות </H2></br>\n")
 	res.Append("<table><tr><th>#</th><th>שם</th><th>בחירה 1</th><th>בחירה 2</th><th>בחירה 3</th></tr>\n")
 
 	for inx, p := range ec.pupils {
@@ -455,7 +550,7 @@ func (ec *ExecutionContext) printHtml() string {
 	res.Append("</table></br>\n")
 
 	//groups
-	res.Append("<h1>Groups</h1></br>\n")
+	res.Append("<h1>קבוצות</h1></br>\n")
 
 	res.Append("<table border=\"1\"><tr><th>#</th><th>שם</th><th>סוג</th>")
 	for i := 0; i < ec.groupsCount; i++ {
@@ -470,6 +565,7 @@ func (ec *ExecutionContext) printHtml() string {
 		}
 		res.AppendFormat("<tr><td>%d</td><td>%s</td><td>%s</td>", c.ID(), c.Description(), groupType)
 		for i := 0; i < ec.groupsCount; i++ {
+
 			res.AppendFormat("<td>%d - (%d)</td>", c.countForGroup[i], c.boysForGroup[i])
 		}
 		res.Append("</tr>\n")

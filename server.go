@@ -29,7 +29,6 @@ func main() {
 			return
 		}
 
-		//go Process(ec)
 		go RunBackTrack(ec)
 		w.Write([]byte(`<html><body>Execution started.to check status, click <a href="/status?e=` + ec.ID() + `" >here</a></br></body></html>`))
 	})
