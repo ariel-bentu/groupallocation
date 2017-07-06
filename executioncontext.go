@@ -145,19 +145,13 @@ func (ec *ExecutionContext) GetIntParam(name string) int {
 
 }
 
-func Initialize() *ExecutionContext {
+func Initialize() (*ExecutionContext, string) {
 	ec := NewExecutionContext()
 
 	ec.groupsCount = ec.GetIntParam("מספר כיתות")
-	ec.iterationCount = ec.GetIntParam("מספר איטרציות")
-
-	var prefPrioWeight [3]int
-	prefPrioWeight[0] = ec.GetIntParam("משקל העדפה ראשונה")
-	prefPrioWeight[1] = ec.GetIntParam("משקל העדפה שניה")
-	prefPrioWeight[2] = ec.GetIntParam("משקל העדפה שלישית")
 
 	groupsSheet := ec.getSheet("Groups")
-
+	err := NewStringBuffer()
 	// initialize all sub groups from the "Groups" sheet
 	i := 1
 	for ; !IsEmpty(groupsSheet.Cell(i, 2)); i++ {
@@ -165,9 +159,8 @@ func Initialize() *ExecutionContext {
 		v, _ := groupsSheet.Cell(i, 1).String()
 		desc, _ := groupsSheet.Cell(i, 2).String()
 		if IsEmpty(groupsSheet.Cell(i, 3)) {
-			//todo
-			MsgBox(fmt.Sprint("חובה להזין משקל לקבוצה - ראה שורה %d", i))
-			return nil
+			err.AppendFormat("חובה להזין משקל לקבוצה - ראה שורה %d", i)
+			return nil, err.ToString()
 		}
 		w, _ := groupsSheet.Cell(i, 3).Int()
 		g := NewSubGroupConstraint(id, desc, v == UNITE_VALUE, w)
@@ -197,7 +190,6 @@ func Initialize() *ExecutionContext {
 		ec.pupils = append(ec.pupils, p)
 		name, _ := pupilsSheet.Cell(i, CELL_NAME).String()
 		p.name = name
-		//		pupilIndex := len(ec.pupils) - 1
 
 		//gender:
 		if v, _ := pupilsSheet.Cell(i, CELL_GENDER).Int(); v == 1 {
@@ -220,10 +212,6 @@ func Initialize() *ExecutionContext {
 
 	sort.Sort(ByGroupCount(ec.pupils))
 
-	//for _, p := range ec.pupils {
-	//		p.groupsCount = 0
-	//}
-
 	//since indexes moved, recreate
 	initializePreferences(ec, pupilsSheet)
 	InitializeGroupsMembers(ec, pupilsSheet)
@@ -232,16 +220,12 @@ func Initialize() *ExecutionContext {
 		c.AfterInit(ec)
 	}
 
-	validateConflicts(ec)
+	validateConflicts(ec, err)
 
-	//sort.Sort(ByMembers(ec.Constraints))
-	//ec.Reshuffel()
-	//ec.balancePupils()
-
-	return ec
+	return ec, err.ToString()
 }
 
-func validateConflicts(ec *ExecutionContext) {
+func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 	//check if two unite sub-groups overlap and if yes, tigh them together
 	merged := true
 	for merged {
@@ -261,7 +245,7 @@ func validateConflicts(ec *ExecutionContext) {
 						for _, m := range g2.Members() {
 							if g1.IsMember(m) {
 								//Found overlap
-								fmt.Printf("Unite group %d overlaps with unite group '%d' - at least %s is in both. merging groups</br>\n", g1.ID(), g2.ID(), ec.pupils[m].name)
+								err.AppendFormat("Unite group %d overlaps with unite group '%d' - at least %s is in both. merging groups</br>\n", g1.ID(), g2.ID(), ec.pupils[m].name)
 								merged = true
 								mergeSubGroups(ec, i, j)
 								break
@@ -303,16 +287,16 @@ func validateConflicts(ec *ExecutionContext) {
 					if included >= 2 {
 						if included > len(g2.Members())/2 {
 							//found a conflict g2 is completed included in g1
-							fmt.Printf("Group %d is unite group and is a too bigger subset of the seperatation group '%d' - it is being disabled</br>\n", g1.ID(), g2.ID())
+							err.AppendFormat("Group %d is a unite group and is a too bigger subset of the seperatation group '%d' --> the group is being disabled</br>\n", g1.ID(), g2.ID())
 							g1.disabled = true
 						}
 						if boysIncluded > g2.boysCount-g2.minBoys {
-							fmt.Printf("Group %d is unite group which include %d boys, which prevents spreading the boys evenly in group %d  - boys even spearding is disabled</br>\n", g1.ID(), boysIncluded, g2.ID())
+							err.AppendFormat("Group %d is a unite group which includes %d boys, which prevents spreading the boys evenly in group %d --> boys even spearding is disabled</br>\n", g1.ID(), boysIncluded, g2.ID())
 
 							g2.minBoys = 0
 						}
 						if girlsIncluded > len(g2.Members())-g2.boysCount-g2.minGirls {
-							fmt.Printf("Group %d is unite group which include %d girls, which prevents spreading the girls evenly in group %d  - girls even spearding is disabled</br>\n", g1.ID(), girlsIncluded, g2.ID())
+							err.AppendFormat("Group %d is a unite group which includes %d girls, which prevents spreading the girls evenly in group %d --> girls even spearding is disabled</br>\n", g1.ID(), girlsIncluded, g2.ID())
 
 							g2.minGirls = 0
 						}
@@ -326,8 +310,8 @@ func validateConflicts(ec *ExecutionContext) {
 
 			if len(p1.prefs) == 1 && p1.prefs[0] == g1.Members()[1] ||
 				len(p2.prefs) == 1 && p2.prefs[0] == g1.Members()[0] {
-				fmt.Printf("Pupil '%s' and '%s' are members of '%s' - a seperation group and have eachother as preference", p1.name, p2.name, g1.Description())
-
+				err.AppendFormat("Pupil '%s' and '%s' are members of '%s' - a seperation group, and have eachother as only preference --> disabling the group", p1.name, p2.name, g1.Description())
+				g1.disabled = true
 			}
 		}
 

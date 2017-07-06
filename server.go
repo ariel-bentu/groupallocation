@@ -23,14 +23,18 @@ func main() {
 	}))
 
 	m.Get("/run", func(w http.ResponseWriter, r *http.Request) {
-		ec := Initialize()
+		ec, err := Initialize()
 		if ec == nil {
-			//todo
+			w.Write([]byte("<html><body>Execution aborted. </br>\n" + err + "</br></body></html>"))
 			return
 		}
 
 		go RunBackTrack(ec)
-		w.Write([]byte(`<html><body>Execution started.to check status, click <a href="/status?e=` + ec.ID() + `" >here</a></br></body></html>`))
+		w.Write([]byte(`<html><body>Execution started.to check status, click <a href="/status?e=` + ec.ID() + `" >here</a></br>`))
+		if len(err) > 0 {
+			w.Write([]byte("Warnings: </br>" + err))
+		}
+		w.Write([]byte("</body></html>"))
 	})
 
 	m.Get("/cancel", func(w http.ResponseWriter, r *http.Request) {
