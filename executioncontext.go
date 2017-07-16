@@ -53,11 +53,18 @@ type ExecutionContext struct {
 	maleGroup      *SubGroupConstraint
 	pupils         []*Pupil
 	dataExcel      *xlsx.File
+	file           string
 
-	currentIteration     int
-	levelChangeIteration int
-	statusCandidate      []int
-	bestTotal            int
+	timeLimit int //in seconds
+
+	currentIteration             int
+	levelChangeIteration         int
+	statusCandidate              []int
+	bestSumOfSatisfiedPrefs      int
+	bestSumOfSatisfiedFirstPrefs int
+	bestCandidate                []int
+	resultsCount                 int
+	resultsScoreHistory          []int
 }
 
 var RunningExecutions map[string]*ExecutionContext
@@ -67,7 +74,6 @@ func NewExecutionContext() *ExecutionContext {
 	ec.startTime = time.Now()
 	ec.done = false
 	ec.Cancel = false
-	ec.bestTotal = -99999
 
 	t := time.Now().UnixNano()
 	ec.id = fmt.Sprintf("%d", t)
@@ -91,14 +97,14 @@ func (e *ExecutionContext) ID() string {
 
 func (e *ExecutionContext) GetStatusHtml() (string, string) {
 	if e.done {
-		return e.printHtml(), fmt.Sprintf("%f", e.endTime.Sub(e.startTime).Seconds())
+		return e.printHtml(), fmt.Sprintf("%f, #of found results: %d</br>%s", e.endTime.Sub(e.startTime).Seconds(), e.resultsCount, slice2String(e.resultsScoreHistory))
 	}
 	//return fmt.Sprintf("Interaction Count:%d, progress: %d", e.currentIteration), fmt.Sprintf("%f", time.Now().Sub(e.startTime).Seconds(),
 	//	e.currentIteration/e.iterationCount*100)
 
 	sb := NewStringBuffer()
-	sb.AppendFormat("Candidate Length:%d, elappsed: %f.0<br>\n%s</br>\n", e.currentIteration, time.Now().Sub(e.startTime).Seconds(),
-		slice2String(e.statusCandidate))
+	sb.AppendFormat("Candidate Length:%d, elappsed: %f.0, found results so far: %d<br>\n%s</br>\n", e.currentIteration, time.Now().Sub(e.startTime).Seconds(),
+		e.resultsCount, slice2String(e.statusCandidate))
 
 	for _, c := range e.Constraints {
 
@@ -113,6 +119,9 @@ func (e *ExecutionContext) GetStatusHtml() (string, string) {
 }
 func (e *ExecutionContext) Finish() {
 	e.done = true
+	for i, p := range e.pupils {
+		p.groupBestScore = e.bestCandidate[i]
+	}
 	e.endTime = time.Now()
 }
 
@@ -145,9 +154,9 @@ func (ec *ExecutionContext) GetIntParam(name string) int {
 
 }
 
-func Initialize() (*ExecutionContext, string) {
+func Initialize(file string) (*ExecutionContext, string) {
 	ec := NewExecutionContext()
-
+	ec.file = file
 	ec.groupsCount = ec.GetIntParam("מספר כיתות")
 
 	groupsSheet := ec.getSheet("Groups")
@@ -157,19 +166,30 @@ func Initialize() (*ExecutionContext, string) {
 	for ; !IsEmpty(groupsSheet.Cell(i, 2)); i++ {
 		id, _ := groupsSheet.Cell(i, 0).Int()
 		v, _ := groupsSheet.Cell(i, 1).String()
+		isUnite := (v == UNITE_VALUE)
 		desc, _ := groupsSheet.Cell(i, 2).String()
-		if IsEmpty(groupsSheet.Cell(i, 3)) {
-			err.AppendFormat("חובה להזין משקל לקבוצה - ראה שורה %d", i)
-			return nil, err.ToString()
+		g := NewSubGroupConstraint(id, desc, isUnite, 0)
+		if !isUnite {
+			genderSensitve, err := groupsSheet.Cell(i, 3).Int()
+			if err == nil && genderSensitve == 1 {
+				g.genderSensitive = true
+			}
+			speardToAll, err := groupsSheet.Cell(i, 4).Int()
+			if err == nil && speardToAll == 1 {
+				g.speadToAll = true
+			}
+
 		}
-		w, _ := groupsSheet.Cell(i, 3).Int()
-		g := NewSubGroupConstraint(id, desc, v == UNITE_VALUE, w)
 		ec.Constraints = append(ec.Constraints, g)
 	}
 	ec.maleGroup = NewSubGroupConstraint(i, "בנים", false, 70)
+	ec.maleGroup.genderSensitive = true
+	ec.maleGroup.speadToAll = true
 	ec.Constraints = append(ec.Constraints, ec.maleGroup)
 	i++
 	ec.allGroup = NewSubGroupConstraint(i, "כולם", false, 200)
+	ec.allGroup.genderSensitive = true
+	ec.allGroup.speadToAll = true
 	ec.Constraints = append(ec.Constraints, ec.allGroup)
 
 	//Init Pupils
@@ -242,7 +262,7 @@ func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 						continue
 					}
 					if i != j && g2.IsUnite {
-						for _, m := range g2.Members() {
+						for _, m := range g2.members {
 							if g1.IsMember(m) {
 								//Found overlap
 								err.AppendFormat("Unite group %d overlaps with unite group '%d' - at least %s is in both. merging groups</br>\n", g1.ID(), g2.ID(), ec.pupils[m].name)
@@ -274,7 +294,7 @@ func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 				if i != j && !g2.IsUnite {
 					boysIncluded := 0
 					girlsIncluded := 0
-					for _, m := range g2.Members() {
+					for _, m := range g2.members {
 						if g1.IsMember(m) {
 							if ec.pupils[m].IsMale() {
 								boysIncluded++
@@ -285,7 +305,7 @@ func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 					}
 					included := boysIncluded + girlsIncluded
 					if included >= 2 {
-						if included > len(g2.Members())/2 {
+						if included > len(g2.members)/2 {
 							//found a conflict g2 is completed included in g1
 							err.AppendFormat("Group %d is a unite group and is a too bigger subset of the seperatation group '%d' --> the group is being disabled</br>\n", g1.ID(), g2.ID())
 							g1.disabled = true
@@ -295,7 +315,7 @@ func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 
 							g2.minBoys = 0
 						}
-						if girlsIncluded > len(g2.Members())-g2.boysCount-g2.minGirls {
+						if girlsIncluded > len(g2.members)-g2.boysCount-g2.minGirls {
 							err.AppendFormat("Group %d is a unite group which includes %d girls, which prevents spreading the girls evenly in group %d --> girls even spearding is disabled</br>\n", g1.ID(), girlsIncluded, g2.ID())
 
 							g2.minGirls = 0
@@ -304,12 +324,12 @@ func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 				}
 			}
 
-		} else if len(g1.Members()) == 2 {
-			p1 := ec.pupils[g1.Members()[0]]
-			p2 := ec.pupils[g1.Members()[1]]
+		} else if len(g1.members) == 2 {
+			p1 := ec.pupils[g1.members[0]]
+			p2 := ec.pupils[g1.members[1]]
 
-			if len(p1.prefs) == 1 && p1.prefs[0] == g1.Members()[1] ||
-				len(p2.prefs) == 1 && p2.prefs[0] == g1.Members()[0] {
+			if len(p1.prefs) == 1 && p1.prefs[0] == g1.members[1] ||
+				len(p2.prefs) == 1 && p2.prefs[0] == g1.members[0] {
 				err.AppendFormat("Pupil '%s' and '%s' are members of '%s' - a seperation group, and have eachother as only preference --> disabling the group", p1.name, p2.name, g1.Description())
 				g1.disabled = true
 			}
@@ -434,7 +454,7 @@ func (ec *ExecutionContext) getSheet(name string) *xlsx.Sheet {
 	if ec.dataExcel == nil {
 		//MsgBox("Code must be called from a Data excel")
 		var err error
-		ec.dataExcel, err = xlsx.OpenFile("c:/temp/file4.xlsx")
+		ec.dataExcel, err = xlsx.OpenFile("c:/temp/groupallocation/" + ec.file)
 		if err != nil {
 			return nil
 		}
@@ -538,7 +558,7 @@ func (ec *ExecutionContext) printHtml() string {
 
 	res.Append("<table border=\"1\"><tr><th>#</th><th>שם</th><th>סוג</th>")
 	for i := 0; i < ec.groupsCount; i++ {
-		res.AppendFormat("<th>כיתה %d (מס' בנים)</th>", i+1)
+		res.AppendFormat("<th>כיתה %d (מס' בנים) (מספר בנות)</th>", i+1)
 	}
 	res.Append("</tr>\n")
 
@@ -550,7 +570,7 @@ func (ec *ExecutionContext) printHtml() string {
 		res.AppendFormat("<tr><td>%d</td><td>%s</td><td>%s</td>", c.ID(), c.Description(), groupType)
 		for i := 0; i < ec.groupsCount; i++ {
 
-			res.AppendFormat("<td>%d - (%d)</td>", c.countForGroup[i], c.boysForGroup[i])
+			res.AppendFormat("<td>%d - (%d)(%d)</td>", c.countForGroup[i], c.boysForGroup[i], c.countForGroup[i]-c.boysForGroup[i])
 		}
 		res.Append("</tr>\n")
 	}

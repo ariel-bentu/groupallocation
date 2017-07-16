@@ -9,15 +9,17 @@ import (
 const MAX_NUM_OF_GROUPS = 20
 
 type SubGroupConstraint struct {
-	id                          int
-	desc                        string
-	IsUnite                     bool
-	Level                       int
-	weight                      int
-	members                     []int
-	originalCount               int
-	maxAllowed                  float64
-	stillAllowOneToBeOneTooMany bool
+	id              int
+	desc            string
+	IsUnite         bool
+	Level           int
+	weight          int
+	members         []int
+	originalCount   int
+	maxAllowed      float64
+	minAllowed      float64
+	genderSensitive bool
+	speadToAll      bool
 
 	countForGroup [MAX_NUM_OF_GROUPS]int
 
@@ -41,12 +43,21 @@ func NewSubGroupConstraint(id int, desc string, isUnite bool, weight int) *SubGr
 
 func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext) {
 	if !c.IsUnite {
-		c.maxAllowed = float64(len(c.Members())) / float64(ec.groupsCount)
+		howManyGroupsToSpread := float64(ec.groupsCount)
+		c.minAllowed = 0
+		if !c.speadToAll {
+			howManyGroupsToSpread = 2
+		}
+		c.maxAllowed = float64(len(c.members)) / howManyGroupsToSpread
+
+		if c.speadToAll {
+			c.minAllowed = c.maxAllowed - 1
+		}
 		//c.stillAllowOneToBeOneTooMany = c.maxAllowed > math.Floor(c.maxAllowed)
-		if c.boysCount > 7 {
-			c.minBoys = 3
-		} else if c.boysCount > 4 {
+		if c.boysCount/ec.groupsCount >= 2 && c.genderSensitive {
 			c.minBoys = 2
+			//} else if c.boysCount/ec.groupsCount > 2 && c.genderSensitive {
+			//	c.minBoys = 2
 		} else {
 			c.minBoys = 0
 		}
@@ -56,11 +67,11 @@ func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext) {
 					c.minBoys = 2
 				}
 		*/
-		girlsNum := len(c.Members()) - c.boysCount
-		if girlsNum > 7 {
-			c.minGirls = 3
-		} else if girlsNum > 4 {
+		girlsNum := len(c.members) - c.boysCount
+		if girlsNum/ec.groupsCount >= 2 && c.genderSensitive {
 			c.minGirls = 2
+			//} else if girlsNum/ec.groupsCount > 2 && c.genderSensitive {
+			//	c.minGirls = 2
 		} else {
 			c.minGirls = 0
 		}
@@ -99,13 +110,10 @@ func (sgc *SubGroupConstraint) Description() string {
 func (sgc *SubGroupConstraint) Weight() int {
 	return sgc.weight
 }
-func (sgc *SubGroupConstraint) Members() []int {
-	return sgc.members
-}
 
 /*
 func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
-	if c.Members() == nil || c.Level == 0 {
+	if c.members == nil || c.Level == 0 {
 		return true
 	}
 
@@ -121,8 +129,8 @@ func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
 	c.girlAlone = false
 	oversized := false
 
-	for i := 0; i < len(c.Members()); i++ {
-		p := ec.pupils[c.Members()[i]]
+	for i := 0; i < len(c.members); i++ {
+		p := ec.pupils[c.members[i]]
 		if p.IsMale() {
 			c.boysCount++
 			c.boysForGroup[p.group]++
@@ -145,7 +153,7 @@ func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
 			}
 		}
 
-		maxAllowed := float64(len(c.Members())) / float64(ec.groupsCount)
+		maxAllowed := float64(len(c.members)) / float64(ec.groupsCount)
 		stillAllowOneToBeOneTooMany := maxAllowed > math.Floor(maxAllowed)
 
 		for i := 0; i < ec.groupsCount; i++ {
@@ -163,7 +171,7 @@ func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
 			if c.boysForGroup[i] < c.minBoys {
 				c.boyAlone = true
 			}
-			if girls := len(c.Members()) - c.boysCount; girls < c.minGirls {
+			if girls := len(c.members) - c.boysCount; girls < c.minGirls {
 				c.girlAlone = true
 			}
 		}
@@ -179,15 +187,15 @@ func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
 		for i := 0; i < ec.groupsCount; i++ {
 			if c.oversizedForGroup[i] {
 				if c.IsUnite {
-					for j := 0; j < len(c.Members()); j++ {
-						p := ec.pupils[c.Members()[j]]
+					for j := 0; j < len(c.members); j++ {
+						p := ec.pupils[c.members[j]]
 						p.score -= c.weight
 					}
 				} else {
 					if i != smallestCountIndex {
 						//only deduct score to the amount of pupils equal to the diff between this group and the smallest
 						for j := 0; j < c.countForGroup[i]-c.countForGroup[smallestCountIndex]; j++ {
-							p := ec.pupils[c.Members()[j]]
+							p := ec.pupils[c.members[j]]
 							p.score -= c.weight
 						}
 					}
@@ -200,7 +208,7 @@ func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
 }
 */
 func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candidate) bool {
-	if c.Members() == nil || c.disabled {
+	if c.members == nil || c.disabled {
 		c.satisfied = true
 		return true
 	}
@@ -232,21 +240,22 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 			return false
 		}
 
-		diff := c.maxAllowed - float64(c.countForGroup[i])
-		if diff <= -1 { //diff < -0.5 {
+		//diff := c.maxAllowed - float64(c.countForGroup[i])
+		//if diff <= -1 { //diff < -0.5 {
+		//more pupils in one group than allowed
+		//	return false
+		//}
+
+		//if diff > 0 && float64(left) < math.Floor(diff) { // diff - 0.5 {
+		if math.Floor(c.minAllowed)-float64(left)-float64(c.countForGroup[i]) > 0 {
 			return false
 		}
 
-		if diff > 0 && float64(left) < math.Floor(diff) { // diff - 0.5 {
+		if c.boysForGroup[i] > 0 && c.boysForGroup[i]+left < c.minBoys {
 			return false
 		}
 
-		//todo many groups
-		if c.boysForGroup[i]+left < c.minBoys {
-			return false
-		}
-
-		if girls := len(c.Members()) - c.boysCount; girls+left < c.minGirls {
+		if girls := c.countForGroup[i] - c.boysForGroup[i]; girls > 0 && girls+left < c.minGirls {
 			return false
 		}
 
@@ -264,10 +273,10 @@ func (c *SubGroupConstraint) calculateMembersCounts(ec *ExecutionContext, candid
 	}
 
 	left := 0
-	for i := 0; i < len(c.Members()); i++ {
-		if c.Members()[i] < k {
-			p := ec.pupils[c.Members()[i]]
-			group := candidate.GetGroup(c.Members()[i])
+	for i := 0; i < len(c.members); i++ {
+		if c.members[i] < k {
+			p := ec.pupils[c.members[i]]
+			group := candidate.GetGroup(c.members[i])
 
 			if p.IsMale() {
 				c.boysForGroup[group]++

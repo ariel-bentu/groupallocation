@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 type PartialAssignment []int
 
 func (pa PartialAssignment) Count() int {
@@ -22,6 +24,11 @@ func RunBackTrack(ec *ExecutionContext) {
 //c is a candidate: a slice of 0..k (k<num of pupils), each represents the group for a pupil
 
 func bt(ec *ExecutionContext, c []int) {
+	if time.Now().Sub(ec.startTime).Seconds() > float64(ec.timeLimit) && ec.resultsCount > 0 {
+
+		ec.Finish()
+		return
+	}
 
 	if ec.Cancel {
 		return
@@ -30,16 +37,26 @@ func bt(ec *ExecutionContext, c []int) {
 		ec.statusCandidate = c
 		if len(c) == len(ec.pupils) {
 			//found a solution
-			for i, p := range ec.pupils {
-				p.groupBestScore = c[i]
+
+			//stores this candidate and continue
+			_, sumOfSat, someOfSatFirsts := getPreferencesScore(ec, PartialAssignment(c))
+			if ec.resultsCount == 0 ||
+				sumOfSat > ec.bestSumOfSatisfiedPrefs ||
+				sumOfSat == ec.bestSumOfSatisfiedPrefs && someOfSatFirsts > ec.bestSumOfSatisfiedFirstPrefs {
+				ec.resultsScoreHistory = append(ec.resultsScoreHistory, ec.bestSumOfSatisfiedPrefs)
+				ec.bestSumOfSatisfiedPrefs = sumOfSat
+				ec.bestSumOfSatisfiedFirstPrefs = someOfSatFirsts
+				ec.bestCandidate = make([]int, len(c))
+				copy(ec.bestCandidate, c)
 			}
-			ec.Finish()
+			ec.resultsCount++
 			return
 		}
 
 	} else {
 		return
 	}
+
 	ec.currentIteration = len(c) + 1
 	nextCandidate := first(ec, c)
 	for nextCandidate != nil && !ec.done {
@@ -134,4 +151,32 @@ func next(ec *ExecutionContext, s []int) []int {
 	}
 
 	return s
+}
+
+/*
+	returns (total preferences, ammount satisfied, amount of first pref satisfied)
+*/
+func getPreferencesScore(ec *ExecutionContext, candidate Candidate) (int, int, int) {
+	firstSatisfiedSum := 0
+	totalSatisfiedSum := 0
+	total := 0
+	k := candidate.Count()
+	for i := 0; i < k; i++ {
+		p := ec.pupils[i]
+		g := candidate.GetGroup(i)
+		for j := 0; j < len(p.prefs); j++ {
+			if p.prefs[j] < k {
+				total++
+				if g == candidate.GetGroup(p.prefs[j]) {
+					totalSatisfiedSum++
+					if j == 0 {
+						firstSatisfiedSum++
+					}
+				}
+			}
+		}
+	}
+
+	return total, totalSatisfiedSum, firstSatisfiedSum
+
 }
