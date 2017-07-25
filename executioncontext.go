@@ -126,7 +126,7 @@ func (e *ExecutionContext) Finish() {
 }
 
 func IsEmpty(c *xlsx.Cell) bool {
-	var v, err = c.String()
+	var v, err = c.FormattedValue()
 	return err != nil || v == ""
 }
 func MsgBox(text string) {
@@ -136,8 +136,8 @@ func MsgBox(text string) {
 func (ec *ExecutionContext) GetParam(name string) string {
 	sheet := ec.getSheet("Configuration")
 	for _, row := range sheet.Rows {
-		if v, _ := row.Cells[0].String(); v == name {
-			p, _ := row.Cells[1].String()
+		if v, _ := row.Cells[0].FormattedValue(); v == name {
+			p, _ := row.Cells[1].FormattedValue()
 			return p
 		}
 	}
@@ -165,9 +165,9 @@ func Initialize(file string) (*ExecutionContext, string) {
 	i := 1
 	for ; !IsEmpty(groupsSheet.Cell(i, 2)); i++ {
 		id, _ := groupsSheet.Cell(i, 0).Int()
-		v, _ := groupsSheet.Cell(i, 1).String()
+		v, _ := groupsSheet.Cell(i, 1).FormattedValue()
 		isUnite := (v == UNITE_VALUE)
-		desc, _ := groupsSheet.Cell(i, 2).String()
+		desc, _ := groupsSheet.Cell(i, 2).FormattedValue()
 		g := NewSubGroupConstraint(id, desc, isUnite, 0)
 		if !isUnite {
 			genderSensitve, err := groupsSheet.Cell(i, 3).Int()
@@ -208,7 +208,7 @@ func Initialize(file string) (*ExecutionContext, string) {
 			assign = 0
 		}
 		ec.pupils = append(ec.pupils, p)
-		name, _ := pupilsSheet.Cell(i, CELL_NAME).String()
+		name, _ := pupilsSheet.Cell(i, CELL_NAME).FormattedValue()
 		p.name = name
 
 		//gender:
@@ -367,7 +367,7 @@ func initializePreferences(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
 
 	for i := 1; i <= len(ec.pupils); i++ {
 
-		name, _ := pupilsSheet.Cell(i, CELL_NAME).String()
+		name, _ := pupilsSheet.Cell(i, CELL_NAME).FormattedValue()
 		pIndex := ec.findPupil(name)
 		p := ec.pupils[pIndex]
 		p.prefs = nil
@@ -376,7 +376,7 @@ func initializePreferences(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
 		var pupilPrefConstraint [3]int
 
 		for j := 0; j < NUM_OF_PREF; j++ {
-			refPupil, _ := pupilsSheet.Cell(i, CELL_PREF+j).String()
+			refPupil, _ := pupilsSheet.Cell(i, CELL_PREF+j).FormattedValue()
 
 			refIndex := ec.findPupil(refPupil)
 			if refIndex != -1 {
@@ -412,7 +412,7 @@ func InitializeGroupsMembers(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
 
 	for i := 1; i <= len(ec.pupils); i++ {
 
-		name, _ := pupilsSheet.Cell(i, CELL_NAME).String()
+		name, _ := pupilsSheet.Cell(i, CELL_NAME).FormattedValue()
 		pupilIndex := ec.findPupil(name)
 		p := ec.pupils[pupilIndex]
 
@@ -422,7 +422,7 @@ func InitializeGroupsMembers(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
 			p.groupsCount++
 		}
 
-		grps, _ := pupilsSheet.Cell(i, CELL_SUBGROUP).String()
+		grps, _ := pupilsSheet.Cell(i, CELL_SUBGROUP).FormattedValue()
 		if grps != "" {
 			subgroupsCellArray := strings.Split(grps, ",")
 			for _, subGroupID := range subgroupsCellArray {

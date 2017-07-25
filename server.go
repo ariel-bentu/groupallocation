@@ -1,16 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/codegangsta/martini"
-	"github.com/codegangsta/martini-contrib/cors"
-	"github.com/codegangsta/martini-contrib/render"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/go-martini/martini"
 )
 
 func main() {
@@ -18,11 +18,53 @@ func main() {
 
 	m := martini.Classic()
 
-	m.Use(render.Renderer(render.Options{
-		Directory: "templates", // Specify what path to load the templates from.
-		Layout:    "layout",    // Specify a layout template. Layouts can call {{ yield }} to render the current template.
-		Charset:   "UTF-8",     // Sets encoding for json and html content-types.
-	}))
+	m.Get("/api/pupils", func(w http.ResponseWriter, r *http.Request) {
+		file := r.URL.Query().Get("file")
+		json, err := getPupilList(file)
+		if err == nil {
+			w.Write(json)
+		} else {
+			//todo
+		}
+
+		//w.Write([]byte(`[{"id":"1", "name":"אריאל"}, {"id":"2", "name":"מעין"}, {"id":"2", "name":"יובל"}]`))
+	})
+
+	m.Post("/api/pupils", func(w http.ResponseWriter, r *http.Request) (int, string) {
+		return 201, "Successufuly added"
+	})
+
+	m.Get("/api/subgroups", func(w http.ResponseWriter, r *http.Request) {
+		file := r.URL.Query().Get("file")
+		json, err := getSubgroupList(file)
+		if err == nil {
+			w.Write(json)
+		}
+	})
+	m.Post("/api/subgroups", func(w http.ResponseWriter, r *http.Request) (int, string) {
+		return 201, "Successufuly added"
+	})
+
+	m.Get("/api/subgroup/pupils", func(w http.ResponseWriter, r *http.Request) {
+		file := r.URL.Query().Get("file")
+		groupId := r.URL.Query().Get("groupId")
+		json, err := getSubGroupPupils(file, groupId)
+		if err == nil {
+			w.Write(json)
+		}
+	})
+	m.Post("/api/subgroup/pupils", func(w http.ResponseWriter, r *http.Request) (int, string) {
+		file := r.URL.Query().Get("file")
+		groupId := r.URL.Query().Get("groupId")
+		decoder := json.NewDecoder(r.Body)
+
+		defer r.Body.Close()
+		err := setSubGroupPupils(file, groupId, decoder)
+		if err == nil {
+			return 201, "Updated Successfully"
+		}
+		return 500, err.Error()
+	})
 
 	m.Get("/api/files", func(w http.ResponseWriter, r *http.Request) {
 		sb := NewStringBuffer()
@@ -120,16 +162,16 @@ func main() {
 		// the header contains useful info, like the original file name
 		fmt.Fprintf(w, "File %s uploaded successfully.", header.Filename)
 	})
-
-	m.Use(cors.Allow(&cors.Options{
-		AllowOrigins:     []string{"http://localhost:3001"},
-		AllowMethods:     []string{"PUT", "PATCH", "GET", "POST"},
-		AllowHeaders:     []string{"Origin"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-	}))
-
-	//m.Use(martini.Static("C:/Users/i022021/AppData/Roaming/npm/group-allocation/build"))
+	/*
+		m.Use(cors.Allow(&cors.Options{
+			AllowOrigins:     []string{"http://localhost:3001"},
+			AllowMethods:     []string{"PUT", "PATCH", "GET", "POST"},
+			AllowHeaders:     []string{"Origin"},
+			ExposeHeaders:    []string{"Content-Length"},
+			AllowCredentials: true,
+		}))
+	*/
+	m.Use(martini.Static("ui/"))
 
 	m.Run()
 

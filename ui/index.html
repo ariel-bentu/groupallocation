@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="style.css">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="util.js"></script>
+
+<script>
+    var file="file.xlsx"
+$(document).ready(function(){
+    
+
+    $("#search").keyup(function(){
+        $("#pupils option").each(function(i) {
+            var opt = $("#pupils option").eq(i);
+            if (opt.text().indexOf($("#search").val())>=0 ){
+                opt.show();
+            } else {
+                opt.hide();
+            }
+        });
+    });
+
+    $("#pupils").dblclick(addPupil);
+    $("#btnAdd").click(addPupil);
+    $("#btnRemove").click(removePupil);
+    $("#groupsPupils").dblclick(removePupil);
+
+    $("#newSubgroup").click(function() {
+        $("#newSubgroupModal").show();
+    });
+    
+    $("#btnCloseNewSubgroupModel").click(function () {
+        $("#newSubgroupModal").hide();
+    })
+
+    $("#subgroups").change(loadSubgroupPupils);
+    $("#btnSave").click(saveGroupsPupils)
+    //window.onclick = function(event) {
+    //    if (event.target.class == "modal") {
+    //        event.target.style.display = "none";
+    //    }
+    //};
+    
+    loadPupils();
+    loadGroups();
+});
+
+function addPupil(){
+    var sel = getSelectedOption("pupils");
+    if (sel != undefined) {
+        addOptionToList("groupsPupils", sel)
+    }
+}
+
+function removePupil() {
+    var sel = getSelectedOption("groupsPupils");
+    if (sel != undefined) {
+        removeOptionFromList("groupsPupils", sel)
+    }
+}
+
+function loadPupils() {
+    $.get("/api/pupils?file="+file , function(json) {
+        $.each(JSON.parse(json), function(i, value) {
+            $('#pupils').append($('<option>').text(value.name).attr('value', value.id));
+        });
+    })
+    .done(function() {
+        
+    })
+    .fail(function() {
+        showMessage('Fail in loading pupils');
+    })
+    .always(function() {
+    });
+}
+
+function loadGroups() {
+    $.get("/api/subgroups?file="+file , function(json) {
+        $.each(JSON.parse(json), function(i, value) {
+            $('#subgroups').append($('<option>').text(value.name).attr('value', value.id));
+        });
+    })
+    .done(function() {
+        
+    })
+    .fail(function() {
+        showMessage('Fail in loading pupils');
+    })
+    .always(function() {
+    });
+}
+
+function loadSubgroupPupils() {
+    var sel = getSelectedOption("subgroups")
+    if (sel != undefined) {
+
+        $.get("/api/subgroup/pupils?file="+file + "&groupId="+sel.val() , function(json) {
+            $('#groupsPupils').find('option').remove().end()
+            $.each(JSON.parse(json), function(i, value) {
+                var name = $("#pupils option[value='"+ value.refId + "']").text()
+                $('#groupsPupils').append($('<option>').text(name).attr('value', value.refId));
+            });
+        })
+        .done(function() {
+            
+        })
+        .fail(function() {
+            showMessage('Fail in loading pupils');
+        })
+        .always(function() {
+        });
+    }
+}
+
+function saveGroupsPupils() {
+    
+    var sel = getSelectedOption("subgroups")
+    if (sel != undefined) {
+        var groupId = sel.val()
+        var pupils = []
+        $("#groupsPupils option").each(function(i) {
+            var opt = $("#groupsPupils option").eq(i);
+            pupils.push({"id":groupId, "refId":opt.val()})
+        });
+        var jsonStr = JSON.stringify(pupils);
+        
+        $.post("/api/subgroup/pupils?file="+file + "&groupId="+groupId, jsonStr, function(json) {
+            showMessage('Successfully saved');
+
+        })
+        .done(function() {
+            
+        })
+        .fail(function() {
+            showMessage('Fail in loading pupils');
+        })
+        .always(function() {
+        });
+
+    }
+}
+</script>
+</head>
+<body>
+
+<div id="newSubgroupModal" class="modal">
+  <!-- Modal content -->
+  <div class="modal-content" dir="rtl">
+    <span id="btnCloseNewSubgroupModel" class="close">&times;</span>
+    <p align="center">הוספת קבוצה</p><br/>
+    <form id="addSubgroup">
+    <table style="width: 100%">
+        <tr>
+            <td style="width: 30%">שם</td>
+            <td style="width: 70%"><input style="width:100%" type="text" id="mdlGroupName"/>
+        </tr>
+    </table>
+    <br/><br/>
+    <input type="submit" value="Save" />
+    </form>
+  </div>
+
+</div>
+ 
+<div dir="rtl">
+<h2 align="center">שיבוץ תלמידים לקבוצה</h2>
+
+
+
+<table style="width:80% ;text-align: right">
+<tr>
+    <td style="width: 10%">קבוצה</td>
+    <td style="width: 80%">
+        <select id="subgroups" class="selecttodiv" style="width: 100%">
+            <option></option>
+        </select>    
+        
+    </td>
+    <td><input type="button" id="newSubgroup" value="קבוצה חדשה..." /></td>
+</tr>
+<tr><td><br/><br/></td></tr>
+</table>
+<table style="width:80% ;text-align: center">
+<tr>
+    <td style="width: 10%"/>    
+    <td style="width: 30%">
+        <input type="text" id="search" placeholder="הקלדי שם לחיפוש" style="height: 15px; width: 90%; margin:4px"></text><br/>
+        <select id="pupils" size="10" style="width: 100%">
+            <optgroup label = "תלמידים">
+    
+        </select>
+    </td>
+    <td style="width: 20%; "> 
+        <br/>
+        <button id="btnAdd">&gt;&gt;</button>
+        <br/>
+        <button id="btnRemove">&lt;&lt;</button>
+
+    </td>
+
+    <td style="width: 30%">
+        <br/><br/>
+        <select id="groupsPupils" size="10" style="width: 100%">
+            <optgroup label = "חברי קבוצה">
+        </select>
+    </td>
+</tr>
+</table>
+<div id="message"></div>
+<table> 
+    <tr>
+        <td><input type="button" id="btnSave" value="Save" /></td>
+        <td><input type="button" id="btnCancel" value="Cancel" /></td>
+    </tr>
+</table>
+</div>
+
+
+
+
+</body>
+</html>
