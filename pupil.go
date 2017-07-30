@@ -1,6 +1,7 @@
 package main
 
 type Pupil struct {
+	id                    int
 	name                  string
 	isMale                bool
 	startGroup            int

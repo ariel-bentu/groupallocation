@@ -53,6 +53,7 @@ type ExecutionContext struct {
 	maleGroup      *SubGroupConstraint
 	pupils         []*Pupil
 	dataExcel      *xlsx.File
+	taskId         int
 	file           string
 
 	timeLimit int //in seconds
@@ -103,7 +104,7 @@ func (e *ExecutionContext) GetStatusHtml() (string, string) {
 	//	e.currentIteration/e.iterationCount*100)
 
 	sb := NewStringBuffer()
-	sb.AppendFormat("Candidate Length:%d, elappsed: %f.0, found results so far: %d<br>\n%s</br>\n", e.currentIteration, time.Now().Sub(e.startTime).Seconds(),
+	sb.AppendFormat("Candidate Length:%d, elappsed: %f.0, found results so far: %d<br>\n<div dir=\"ltr\">%s</div></br>\n", e.currentIteration, time.Now().Sub(e.startTime).Seconds(),
 		e.resultsCount, slice2String(e.statusCandidate))
 
 	for _, c := range e.Constraints {
@@ -245,6 +246,95 @@ func Initialize(file string) (*ExecutionContext, string) {
 	return ec, err.ToString()
 }
 
+func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
+	ec := NewExecutionContext()
+	ec.taskId = taskId
+	ec.groupsCount = 2 //todo
+	connect()
+
+	err := NewStringBuffer()
+	// initialize all sub groups from the "Groups" sheet
+	groups, e := db.Query("select id, name, sgtype, gendersensitive, speadevenly , inactive from subgroups where tenant=? and task=?", user.getTenant(), taskId)
+	if e != nil {
+		panic(e)
+	}
+	for groups.Next() {
+		var id int
+		var name string
+		var sgtype int
+		var gendersensitive int
+		var speadevenly int
+		var inactive int
+		groups.Scan(&id, &name, &sgtype, &gendersensitive, &speadevenly, &inactive)
+		isUnite := sgtype == 0
+		g := NewSubGroupConstraint(id, name, isUnite, 0)
+		if !isUnite {
+			g.genderSensitive = (gendersensitive == 1)
+			g.speadToAll = (speadevenly == 1)
+		}
+		if inactive == 1 {
+			g.disabled = true
+		}
+		ec.Constraints = append(ec.Constraints, g)
+	}
+	groups.Close()
+
+	ec.maleGroup = NewSubGroupConstraint(9999, "בנים", false, 70)
+	ec.maleGroup.genderSensitive = true
+	ec.maleGroup.speadToAll = true
+	ec.Constraints = append(ec.Constraints, ec.maleGroup)
+
+	ec.allGroup = NewSubGroupConstraint(10000, "כולם", false, 200)
+	ec.allGroup.genderSensitive = true
+	ec.allGroup.speadToAll = true
+	ec.Constraints = append(ec.Constraints, ec.allGroup)
+
+	//Init Pupils
+	pupils, e := db.Query("select id, name, gender from pupils where tenant=? and task=? order by id", user.getTenant(), taskId)
+	if e != nil {
+		panic(e)
+	}
+	assign := 0
+
+	for pupils.Next() {
+		var id int
+		var name string
+		var gender int
+		pupils.Scan(&id, &name, &gender)
+		p := new(Pupil)
+		p.startGroup = assign
+		assign++
+		if assign == ec.groupsCount {
+			assign = 0
+		}
+		ec.pupils = append(ec.pupils, p)
+		p.name = name
+		p.id = id
+		p.isMale = (gender == 1)
+	}
+
+	for _, p := range ec.pupils {
+		p.groupsCount = 0
+	}
+
+	initializePreferences2(ec, user, taskId)
+	InitializeGroupsMembers2(ec, user, taskId)
+
+	sort.Sort(ByGroupCount(ec.pupils))
+
+	//since indexes moved, recreate
+	initializePreferences2(ec, user, taskId)
+	InitializeGroupsMembers2(ec, user, taskId)
+
+	for _, c := range ec.Constraints {
+		c.AfterInit(ec)
+	}
+
+	validateConflicts(ec, err)
+
+	return ec, err.ToString()
+}
+
 func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 	//check if two unite sub-groups overlap and if yes, tigh them together
 	merged := true
@@ -265,7 +355,7 @@ func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 						for _, m := range g2.members {
 							if g1.IsMember(m) {
 								//Found overlap
-								err.AppendFormat("Unite group %d overlaps with unite group '%d' - at least %s is in both. merging groups</br>\n", g1.ID(), g2.ID(), ec.pupils[m].name)
+								err.AppendFormat("Unite group '%s' overlaps with unite group '%s' - at least %s is in both. merging groups</br>\n", g1.Description(), g2.Description(), ec.pupils[m].name)
 								merged = true
 								mergeSubGroups(ec, i, j)
 								break
@@ -427,16 +517,83 @@ func InitializeGroupsMembers(ec *ExecutionContext, pupilsSheet *xlsx.Sheet) {
 			subgroupsCellArray := strings.Split(grps, ",")
 			for _, subGroupID := range subgroupsCellArray {
 				subGroupIdInt, _ := strconv.Atoi(strings.TrimSpace(subGroupID))
-				if subGroupIdInt < 1 {
+				if subGroupIdInt < 0 {
 					//todo
 					MsgBox("תת קבוצה מיוצגת על ידי מספר מ - 1 עד ")
 					return
 				}
-				grpIndex := ec.findGroup(subGroupIdInt)
-				sg := ec.Constraints[grpIndex]
-				sg.AddMember(pupilIndex, ec)
-				p.groupsCount++
+				if subGroupIdInt > 0 {
+					grpIndex := ec.findGroup(subGroupIdInt)
+					if grpIndex == -1 {
+						MsgBox(fmt.Sprintf("could not find group %d", subGroupIdInt))
+					}
+					sg := ec.Constraints[grpIndex]
+					sg.AddMember(pupilIndex, ec)
+					p.groupsCount++
+				}
 			}
+		}
+	}
+}
+
+func initializePreferences2(ec *ExecutionContext, user *User, taskId int) {
+
+	for _, p := range ec.pupils {
+		p.prefs = nil
+	}
+
+	prefs, err := db.Query("select pupilId, refPupilId, priority from pupilPrefs where tenant=? and task=? order by pupilId, priority",
+		user.getTenant(), taskId)
+	if err != nil {
+		panic(err)
+	}
+
+	for prefs.Next() {
+		var pupilId int
+		var refPupilId int
+		var priority int
+		prefs.Scan(&pupilId, &refPupilId, &priority)
+
+		pupilIndex := ec.findPupilById(pupilId)
+		pupilRefIndex := ec.findPupilById(refPupilId)
+		p := ec.pupils[pupilIndex]
+		p.prefs = append(p.prefs, pupilRefIndex)
+
+	}
+
+}
+
+func InitializeGroupsMembers2(ec *ExecutionContext, user *User, taskId int) {
+
+	for _, c := range ec.Constraints {
+		c.members = nil
+		c.boysCount = 0
+	}
+
+	stmt, err := db.Prepare("select groupId from subgroupPupils where tenant=? and task=? and pupilId=?")
+	if err != nil {
+		panic(err)
+	}
+	for _, p := range ec.pupils {
+		pupilIndex := ec.findPupil(p.name)
+
+		ec.allGroup.AddMember(pupilIndex, ec)
+		if p.IsMale() {
+			ec.maleGroup.AddMember(pupilIndex, ec)
+			p.groupsCount++
+		}
+		res, err := stmt.Query(user.getTenant(), taskId, p.id)
+		if err != nil {
+			panic(err)
+		}
+		for res.Next() {
+			var groupId int
+
+			res.Scan(&groupId)
+			grpIndex := ec.findGroup(groupId)
+			sg := ec.Constraints[grpIndex]
+			sg.AddMember(pupilIndex, ec)
+			p.groupsCount++
 		}
 	}
 }
@@ -450,11 +607,20 @@ func (ec *ExecutionContext) findPupil(name string) int {
 	return -1
 }
 
+func (ec *ExecutionContext) findPupilById(id int) int {
+	for i, p := range ec.pupils {
+		if p.id == id {
+			return i
+		}
+	}
+	return -1
+}
+
 func (ec *ExecutionContext) getSheet(name string) *xlsx.Sheet {
 	if ec.dataExcel == nil {
 		//MsgBox("Code must be called from a Data excel")
 		var err error
-		ec.dataExcel, err = xlsx.OpenFile("c:/temp/groupallocation/" + ec.file)
+		ec.dataExcel, err = xlsx.OpenFile("/Users/i022021/Dev/tmp/" + ec.file)
 		if err != nil {
 			return nil
 		}

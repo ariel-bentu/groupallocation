@@ -10,9 +10,11 @@ h1 {
 
 .selecttodiv{
     display: inline-block;
+    
     height: 3em;    
-    -webkit-appearance: none;
-    -moz-appearance: none;
+    -webkit-appearance: button;
+    
+    
 }
 
 .selecttodiv option{

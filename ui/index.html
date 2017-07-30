@@ -5,27 +5,30 @@
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script src="util.js"></script>
-
+<script src="main.js"></script>
 <script>
-    var file="file.xlsx"
+    var taskID=-1
+    var file = "file.xlsx"
 $(document).ready(function(){
     
 
-    $("#search").keyup(function(){
-        $("#pupils option").each(function(i) {
-            var opt = $("#pupils option").eq(i);
-            if (opt.text().indexOf($("#search").val())>=0 ){
-                opt.show();
-            } else {
-                opt.hide();
-            }
-        });
-    });
+    $("#search").keyup(function() {searchInList("pupils", $("#search").val())});
+    $("#searchPref1").keyup(function(){searchInList("pupilsInPref1", $("#searchPref1").val())});
+    $("#searchPref2").keyup(function(){searchInList("pupilsInPref2", $("#searchPref2").val())});
 
-    $("#pupils").dblclick(addPupil);
-    $("#btnAdd").click(addPupil);
-    $("#btnRemove").click(removePupil);
-    $("#groupsPupils").dblclick(removePupil);
+    $("#pupils").dblclick(function() {addPupil("pupils", "groupsPupils", "btnSaveGroupPupil")});
+    $("#btnAdd").click(function() {addPupil("pupils", "groupsPupils", "btnSaveGroupPupil")});
+    $("#btnRemove").click(function () {removePupil("groupsPupils","btnSaveGroupPupil")});
+    $("#groupsPupils").dblclick(function () {removePupil("groupsPupils","btnSaveGroupPupil")});
+
+    $("#pupilsInPref1").click(loadPupilPrefs)
+
+    $("#pupilsInPref2").dblclick(function() {addPupil("pupilsInPref2", "pupilsPrefs", "btnSavePrefs")});
+    $("#btnAddPref").click(function() {addPupil("pupilsInPref2", "pupilsPrefs","btnSavePupilPref")});
+    $("#btnRemovePref").click(function () {removePupil("pupilsPrefs","btnSavePrefs")});
+    $("#pupilsPrefs").dblclick(function () {removePupil( "pupilsPrefs","btnSavePrefs")});
+
+    $("#btnSavePrefs").click(savePupilPrefs);
 
     $("#newSubgroup").click(function() {
         $("#newSubgroupModal").show();
@@ -36,112 +39,36 @@ $(document).ready(function(){
     })
 
     $("#subgroups").change(loadSubgroupPupils);
-    $("#btnSave").click(saveGroupsPupils)
+    $("#btnSaveGroupPupil").click(saveGroupsPupils)
+    $("#tasks").change(function () {
+        var sel = getSelectedOption("tasks");
+        if (sel != undefined) {
+            taskID = sel.val()
+            loadPupils();
+            loadGroups();
+            
+        } 
+    })
+
+    $("#isUnite").change(setDirty("groupSave"));
+    $("#isInactive").change(setDirty("groupSave"));
+    $("#groupSave").click(saveGroup);
+    $("#btnDeleteTask").click(deleteTask)
+
+    $("#btnRun").click(function() {
+        window.open("/run?task=" + taskID);
+    })
+
+    $("#btnSaveNewSubgroup").click(saveNewGroup);
     //window.onclick = function(event) {
     //    if (event.target.class == "modal") {
     //        event.target.style.display = "none";
     //    }
     //};
-    
-    loadPupils();
-    loadGroups();
+    loadTasks()
 });
 
-function addPupil(){
-    var sel = getSelectedOption("pupils");
-    if (sel != undefined) {
-        addOptionToList("groupsPupils", sel)
-    }
-}
 
-function removePupil() {
-    var sel = getSelectedOption("groupsPupils");
-    if (sel != undefined) {
-        removeOptionFromList("groupsPupils", sel)
-    }
-}
-
-function loadPupils() {
-    $.get("/api/pupils?file="+file , function(json) {
-        $.each(JSON.parse(json), function(i, value) {
-            $('#pupils').append($('<option>').text(value.name).attr('value', value.id));
-        });
-    })
-    .done(function() {
-        
-    })
-    .fail(function() {
-        showMessage('Fail in loading pupils');
-    })
-    .always(function() {
-    });
-}
-
-function loadGroups() {
-    $.get("/api/subgroups?file="+file , function(json) {
-        $.each(JSON.parse(json), function(i, value) {
-            $('#subgroups').append($('<option>').text(value.name).attr('value', value.id));
-        });
-    })
-    .done(function() {
-        
-    })
-    .fail(function() {
-        showMessage('Fail in loading pupils');
-    })
-    .always(function() {
-    });
-}
-
-function loadSubgroupPupils() {
-    var sel = getSelectedOption("subgroups")
-    if (sel != undefined) {
-
-        $.get("/api/subgroup/pupils?file="+file + "&groupId="+sel.val() , function(json) {
-            $('#groupsPupils').find('option').remove().end()
-            $.each(JSON.parse(json), function(i, value) {
-                var name = $("#pupils option[value='"+ value.refId + "']").text()
-                $('#groupsPupils').append($('<option>').text(name).attr('value', value.refId));
-            });
-        })
-        .done(function() {
-            
-        })
-        .fail(function() {
-            showMessage('Fail in loading pupils');
-        })
-        .always(function() {
-        });
-    }
-}
-
-function saveGroupsPupils() {
-    
-    var sel = getSelectedOption("subgroups")
-    if (sel != undefined) {
-        var groupId = sel.val()
-        var pupils = []
-        $("#groupsPupils option").each(function(i) {
-            var opt = $("#groupsPupils option").eq(i);
-            pupils.push({"id":groupId, "refId":opt.val()})
-        });
-        var jsonStr = JSON.stringify(pupils);
-        
-        $.post("/api/subgroup/pupils?file="+file + "&groupId="+groupId, jsonStr, function(json) {
-            showMessage('Successfully saved');
-
-        })
-        .done(function() {
-            
-        })
-        .fail(function() {
-            showMessage('Fail in loading pupils');
-        })
-        .always(function() {
-        });
-
-    }
-}
 </script>
 </head>
 <body>
@@ -159,30 +86,99 @@ function saveGroupsPupils() {
         </tr>
     </table>
     <br/><br/>
-    <input type="submit" value="Save" />
+    <input type="button" id="btnSaveNewSubgroup" value="Save" />
     </form>
   </div>
 
 </div>
  
 <div dir="rtl">
-<h2 align="center">שיבוץ תלמידים לקבוצה</h2>
 
+<h2 align="center">שיבוצים</h2>
+<table style="width:80% ;text-align: right">
+<tr>
+    <td style="width: 15%">שם השיבוץ</td>
+    <td style="width: 60%">
+        <select id="tasks"  style="width: 100%">
+            <option></option>
+        </select>    
+    
+    <td>
+        <input type="button" id="btnDeleteTask" value="מחק שיבוץ" />
+        <input type="button" id="btnRun" value="הרץ" />
+
+    </td>
+</tr>
+</table>
+
+<h2 align="center">העדפות תלמידים</h2>
+
+<table style="width:100% ;text-align: center">
+<tr>
+    <td style="width: 40%">
+        <input type="text" id="searchPref1" placeholder="הקלדי שם לחיפוש" style="height: 15px; width: 90%; margin:4px"></text><br/>
+        <select id="pupilsInPref1" size="10" style="width: 90%">
+            <optgroup label = "בחר תלמיד כדי לראות/לקבוע העדפותיו">
+    
+        </select>
+    </td>    
+    <td style="width: 25%">
+        <input type="text" id="searchPref2" placeholder="הקלדי שם לחיפוש" style="height: 15px; width: 90%; margin:4px"></text><br/>
+        <select id="pupilsInPref2" size="10" style="width: 100%">
+            <optgroup label = "תלמידים">
+    
+        </select>
+    </td>
+    <td style="width: 5%; " valign="top"> 
+        <br/><br/><br/>
+        <button id="btnAddPref">&gt;&gt;</button>
+        <br/>
+        <button id="btnRemovePref">&lt;&lt;</button>
+
+    </td>
+
+    <td style="width: 25%" valign="top">
+        <br/><br/>
+        <select id="pupilsPrefs" size="5" style="width: 100%">
+            <optgroup label = "העדפות לפי סדר">
+        </select>
+    </td>
+</tr>
+<tr>
+    <td><input type="button" id="btnSavePrefs" value="שמור העדפות תלמיד" disabled/></td>
+</tr>
+</table>
+
+
+<h2 align="center">קבוצה</h2>
 
 
 <table style="width:80% ;text-align: right">
 <tr>
     <td style="width: 10%">קבוצה</td>
     <td style="width: 80%">
-        <select id="subgroups" class="selecttodiv" style="width: 100%">
+        <select id="subgroups"  style="width: 100%">
             <option></option>
         </select>    
         
     </td>
-    <td><input type="button" id="newSubgroup" value="קבוצה חדשה..." /></td>
+    <td>
+        <input type="button" id="newSubgroup" value="קבוצה חדשה..." />
+    </td>
 </tr>
-<tr><td><br/><br/></td></tr>
+<tr>
+    <td/>
+    <td>
+        <input type="checkbox" id="isUnite">קבוצת איחוד</input><br/>
+        <input type="checkbox" id="isInactive">כבוי זמנית</input>
+    </td>
+    <td/>
+</tr>
+<tr><td><input type="button" id="groupSave" value="שמור קבוצה" disabled/></td></tr>
+<tr><td></td></tr>
 </table>
+<h2 align="center">שיבוץ תלמידים לקבוצה</h2>
+
 <table style="width:80% ;text-align: center">
 <tr>
     <td style="width: 10%"/>    
@@ -212,10 +208,12 @@ function saveGroupsPupils() {
 <div id="message"></div>
 <table> 
     <tr>
-        <td><input type="button" id="btnSave" value="Save" /></td>
-        <td><input type="button" id="btnCancel" value="Cancel" /></td>
+        <td><input type="button" id="btnSaveGroupPupil" value="שמור חברי קבוצה" disabled/></td>
+        <td></td>
     </tr>
 </table>
+
+
 </div>
 
 
