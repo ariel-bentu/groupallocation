@@ -64,3 +64,26 @@ function searchInList(list, searchStr){
         }
     });
 };
+
+
+//encryption
+
+function getKey(password) {
+    return forge.pbe.opensslDeriveBytes(password, null, 16);
+} 
+
+function decrypt(password, srcBase64) {
+    if (password == undefined || password.length == 0) 
+        return srcBase64;
+
+    var decipher = forge.cipher.createDecipher('AES-CFB', forge.util.createBuffer(getKey(password)));
+    decipher.start({iv: forge.util.createBuffer('')});
+    decipher.update(forge.util.createBuffer(atob(srcBase64)));
+    decipher.finish();
+    //remove the iv
+    decipher.output.getBytes(16);
+
+    return decipher.output.toString()
+}
+
+

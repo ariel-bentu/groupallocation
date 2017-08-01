@@ -185,18 +185,40 @@ func main() {
 	m.Get("/up", func(w http.ResponseWriter, r *http.Request) {
 
 		w.Write([]byte(`<html>
-                    <form action="" method="post" enctype="multipart/form-data">
+					<script src="util.js"></script>
+					<script src="forge.min.js"></script>
+					<script>
+						function makeKey(){
+							var passcodeInput = document.getElementsByName("passcode")[0];
+							passcodeInput.value = btoa(getKey(passcodeInput.value))
+						}
+					</script>
+                    <form action="" method="post" onSubmit="makeKey()" enctype="multipart/form-data">
 						<p><input type="file" name="file" value="upload excel file">
-						<p><input type="text" name="taskName" value="שם עבודה">
-                        <p><button type="submit">Submit</button>
+						<p><input type="text" name="taskName" value="" placeholder="שם השיבוץ">
+						<p><input type="text" name="passcode" value="" placeholder="סיסמת הצפנה - אופציונלי">
+                        <p><button type="submit" >שלח</button>
                     </form>
                 </html>`))
 	})
+
+	m.Get("/test/encrypt", func(w http.ResponseWriter, r *http.Request) {
+
+		passcode := r.URL.Query().Get("passcode")
+
+		content := "בדיקה"
+		key, iv := AESencryptInit(passcode)
+		enc := AESencrypt(key, iv, content)
+
+		w.Write([]byte(enc))
+	})
+
 	m.Post("/up", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("%v\n", "p./up")
 
 		file, header, err := r.FormFile("file")
 		taskName := r.FormValue("taskName")
+		passcode := r.FormValue("passcode")
 		defer file.Close()
 
 		if err != nil {
@@ -215,7 +237,9 @@ func main() {
 			fmt.Fprintln(w, err)
 		}
 
-		uploadExcel(&User{tenant: "ariel"}, path, taskName)
+		uploadExcel(&User{tenant: "ariel"}, path, taskName, passcode)
+
+		os.Remove(path)
 
 		// the header contains useful info, like the original file name
 		fmt.Fprintf(w, "File %s uploaded successfully.", header.Filename)

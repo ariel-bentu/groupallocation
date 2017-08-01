@@ -200,7 +200,14 @@ func checkErrPanic(err error, tx *sql.Tx) {
 		panic(err)
 	}
 }
-func uploadExcel(user *User, path string, taskName string) {
+
+func uploadExcel(user *User, path string, taskName string, passcode string) {
+	encrypt := passcode != ""
+	var key, iv []byte
+	if encrypt {
+		key, iv = AESencryptInit(passcode)
+	}
+
 	tenant := user.getTenant()
 	connect()
 	tx, err := db.Begin()
@@ -224,6 +231,10 @@ func uploadExcel(user *User, path string, taskName string) {
 			if name == "" {
 				break
 			}
+			if encrypt {
+				name = AESencrypt(key, iv, name)
+			}
+
 			gender, _ := pupilsSheet.Cell(i, CELL_GENDER).Int()
 			groups := pupilsSheet.Cell(i, CELL_SUBGROUP).String()
 			stmt.Exec(tenant, task, i, name, gender)
@@ -248,6 +259,9 @@ func uploadExcel(user *User, path string, taskName string) {
 	for i := 1; i < len(pupilsSheet.Rows); i++ {
 		for j := 0; j < NUM_OF_PREF; j++ {
 			refPupil, _ := pupilsSheet.Cell(i, CELL_PREF+j).FormattedValue()
+			if encrypt {
+				refPupil = AESencrypt(key, iv, refPupil)
+			}
 			refId := findPupilId(pupils, refPupil)
 			if refId != -1 {
 				stmtPupilPrefs.Exec(user.getTenant(), task, i, refId, j)

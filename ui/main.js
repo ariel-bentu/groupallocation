@@ -128,9 +128,11 @@ function loadPupils() {
         emptyList("pupilsInPref2")
 
         $.each(JSON.parse(json), function(i, value) {
-            $('#pupils').append($('<option>').text(value.name + " - " + (value.isMale?"בן":"בת")).attr('value', value.id));
-            $('#pupilsInPref1').append($('<option>').text(value.name + " - " + (value.isMale?"בן":"בת")).attr('value', value.id));
-            $('#pupilsInPref2').append($('<option>').text(value.name + " - " + (value.isMale?"בן":"בת")).attr('value', value.id));
+            var name = decrypt($("#pwd").val(), value.name)
+
+            $('#pupils').append($('<option>').text(name + " - " + (value.isMale?"בן":"בת")).attr('value', value.id));
+            $('#pupilsInPref1').append($('<option>').text(name + " - " + (value.isMale?"בן":"בת")).attr('value', value.id));
+            $('#pupilsInPref2').append($('<option>').text(name + " - " + (value.isMale?"בן":"בת")).attr('value', value.id));
         });
     })
     .done(function() {

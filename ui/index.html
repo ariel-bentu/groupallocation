@@ -4,14 +4,44 @@
     <link rel="stylesheet" type="text/css" href="style.css">
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
 <script src="util.js"></script>
 <script src="main.js"></script>
+<script src="forge.min.js"></script>
 <script>
     var taskID=-1
     var file = "file.xlsx"
 $(document).ready(function(){
-    
+    /*
+    readableKey="arielABC";
+    var salt = forge.random.getBytesSync(8);
+    var keySize = 16;
+    var ivSize = 8;
+    //'0123456789123456';//
+    var derivedBytes = forge.pbe.opensslDeriveBytes(readableKey, null, 16);
 
+    
+    var request = new XMLHttpRequest();
+    var url = "/test/encrypt?passcode="+encodeURIComponent(btoa(derivedBytes));
+    request.open("GET", url, true);
+    //request.responseType = "arraybuffer";
+    request.onload = function () {
+        var rt = request.response;
+        console.log(rt);
+        var decipher = forge.cipher.createDecipher('AES-CFB', forge.util.createBuffer(derivedBytes));
+        decipher.start({iv: forge.util.createBuffer('')});
+        decipher.update(forge.util.createBuffer(atob(rt)));
+        decipher.finish();
+        decipher.output.getBytes(16);
+
+        console.log(decipher.output);
+        console.log(decipher.output.toString());
+        console.log('--------------');
+    };
+
+    request.send();
+*/
+    $("#decrypt").click(function () {loadPupils(); loadGroups();});
     $("#search").keyup(function() {searchInList("pupils", $("#search").val())});
     $("#searchPref1").keyup(function(){searchInList("pupilsInPref1", $("#searchPref1").val())});
     $("#searchPref2").keyup(function(){searchInList("pupilsInPref2", $("#searchPref2").val())});
@@ -69,6 +99,8 @@ $(document).ready(function(){
 });
 
 
+
+
 </script>
 </head>
 <body>
@@ -93,7 +125,7 @@ $(document).ready(function(){
 </div>
  
 <div dir="rtl">
-
+<input type="text" id="pwd" value=""><input type="button" id="decrypt" value="פענח" />
 <h2 align="center">שיבוצים</h2>
 <table style="width:80% ;text-align: right">
 <tr>
