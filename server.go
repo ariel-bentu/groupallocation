@@ -175,7 +175,26 @@ func main() {
 		if ec == nil {
 			w.Write([]byte("context not found"))
 		}
-		w.Write([]byte(`<html dir="rtl"><body><h1>Execution status</h1>  <a href="/status?e=` + ec.id + `" >Refresh</a><br>`))
+		w.Write([]byte(`<html dir="rtl"><head>
+						<script src="util.js"></script>
+						<script src="forge.min.js"></script>
+						<script>
+							function decryptNames() {
+								var cells = document.getElementsByName("encryptedCell");
+								var pwd = document.getElementById("pwd").value;
+								if (pwd.length > 0) {
+									for (var i=0;i<cells.length;i++) {
+										var cell = cells[i];
+										cell.innerText = decrypt(pwd, cell.innerText)
+									}
+								}							
+					        }
+						</script>
+						</head>
+						<body>
+						
+						<h1>Execution status</h1>  <a href="/status?e=` + ec.id + `" >Refresh</a><br>
+						סיסמת הצפנה<input type="text" id="pwd" value=""><input type="button" onClick= "decryptNames()" id="decrypt" value="פענח" /><br/>`))
 		res, t := ec.GetStatusHtml()
 		w.Write([]byte("time(sec):" + t))
 		w.Write([]byte(res))

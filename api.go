@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 
 	"encoding/json"
@@ -186,8 +187,12 @@ var db *sql.DB = nil
 
 func connect() {
 	if db == nil {
+		path := os.Getenv("GA_DBPATH")
+		if path == "" {
+			path = "/Users/i022021/Dev/tmp/groups.db"
+		}
 		var err error
-		db, err = sql.Open("sqlite3", "/Users/i022021/Dev/tmp/groups.db")
+		db, err = sql.Open("sqlite3", path)
 		if err != nil {
 			panic(err)
 		}
