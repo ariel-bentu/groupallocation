@@ -688,7 +688,7 @@ func (ec *ExecutionContext) printHtml() string {
 			if len(list[j]) > i {
 				name = ec.pupils[list[j][i]].name
 			}
-			res.AppendFormat("<td>%s</td>", name)
+			res.AppendFormat("<td name=\"encryptedCell\">%s</td>", name)
 		}
 		res.Append("</tr>")
 	}
@@ -702,13 +702,13 @@ func (ec *ExecutionContext) printHtml() string {
 		colorName := getColor(p.groupBestScore)
 
 		//name
-		res.Append(fmt.Sprintf("<tr><td>%d</td><td bgcolor=%s>%s</td>", inx+1, colorName, p.name))
+		res.Append(fmt.Sprintf("<tr><td>%d</td><td bgcolor=%s name=\"encryptedCell\">%s</td>", inx+1, colorName, p.name))
 		//preferences
 
 		for i := 0; i < len(p.prefs); i++ {
 			refP := ec.pupils[p.prefs[i]]
 			colorPref := getColor(refP.groupBestScore)
-			res.Append(fmt.Sprintf("<td bgcolor=\"%s\">%s</td>", colorPref, refP.name))
+			res.Append(fmt.Sprintf("<td bgcolor=\"%s\" name=\"encryptedCell\">%s</td>", colorPref, refP.name))
 		}
 
 		for i := len(p.prefs); i < NUM_OF_PREF; i++ {

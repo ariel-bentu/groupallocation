@@ -194,6 +194,7 @@ func connect() {
 		var err error
 		db, err = sql.Open("sqlite3", path)
 		if err != nil {
+			fmt.printf("unable to open DB at : " + path)
 			panic(err)
 		}
 	}
