@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"runtime/pprof"
 	"strconv"
 
 	"strings"
@@ -32,10 +34,28 @@ func getParamBool(r *http.Request, param string) bool {
 	return false
 }
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 func main() {
+
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	log.SetOutput(os.Stdout)
 
 	m := martini.Classic()
+
+	m.Get("/prof/stop", func(w http.ResponseWriter, r *http.Request) {
+		pprof.StopCPUProfile()
+
+	})
 
 	m.Get("/api/pupils", func(w http.ResponseWriter, r *http.Request) {
 		task := getParamInt(r, "task")
@@ -85,7 +105,9 @@ func main() {
 		groupId := getParamInt(r, "groupId")
 		isUnite := getParamBool(r, "isUnite")
 		isInactive := getParamBool(r, "isInactive")
-		updateSubgroup(user, taskId, groupId, isUnite, isInactive)
+		isGenderSensitive := getParamBool(r, "isGenderSensitive")
+		isSpreadEvenly := getParamBool(r, "isSpreadEvenly")
+		updateSubgroup(user, taskId, groupId, isUnite, isInactive, isGenderSensitive, isSpreadEvenly)
 		return 201, "Successfully updated"
 	})
 
@@ -151,7 +173,7 @@ func main() {
 
 			ec.timeLimit, _ = strconv.Atoi(limit)
 		} else {
-			ec.timeLimit = 5
+			ec.timeLimit = 20
 		}
 		go RunBackTrack(ec)
 		w.Write([]byte(`<html><body>Execution started.to check status, click <a href="/status?e=` + ec.ID() + `" >here</a></br>`))
@@ -174,6 +196,7 @@ func main() {
 		ec := FindExecutionContext(id)
 		if ec == nil {
 			w.Write([]byte("context not found"))
+			return
 		}
 		w.Write([]byte(`<html dir="rtl"><head>
 						<script src="util.js"></script>
@@ -209,7 +232,9 @@ func main() {
 					<script>
 						function makeKey(){
 							var passcodeInput = document.getElementsByName("passcode")[0];
-							passcodeInput.value = btoa(getKey(passcodeInput.value))
+							if (passcodeInput.value != "") {
+								passcodeInput.value = btoa(getKey(passcodeInput.value))
+							}
 						}
 					</script>
                     <form action="" method="post" onSubmit="makeKey()" enctype="multipart/form-data">
@@ -219,6 +244,63 @@ func main() {
                         <p><button type="submit" >שלח</button>
                     </form>
                 </html>`))
+	})
+
+	m.Get("/pref-graph", func(w http.ResponseWriter, r *http.Request) {
+		taskId := getParamInt(r, "task")
+		var ec *ExecutionContext
+		var err string
+		ec, err = Initialize2(user, taskId)
+		if err != "" {
+			w.Write([]byte("Error: </br>" + err))
+			return
+		}
+
+		w.Write([]byte(`<html>
+  	<head>
+    <link href="graph.css" rel="stylesheet" />
+    <meta charset=utf-8 />
+    <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
+    <title>גרף העדפות</title>
+	<script src="cytoscape.min.js"></script>
+	<script>
+		var nodes = [`))
+		comma := ""
+		for i, p := range ec.pupils {
+			c := "white"
+			if p.IsMale() {
+				c = "blue"
+			}
+			w.Write([]byte(fmt.Sprintf("%s { data: { id: '%d', name: '%s', color: '%s'}}", comma, i, p.name, c)))
+
+			if comma == "" {
+				comma = ","
+			}
+		}
+
+		w.Write([]byte(`];
+		var edges = [`))
+		comma = ""
+		for i, p := range ec.pupils {
+			for j := 0; j < len(p.prefs); j++ {
+				w.Write([]byte(fmt.Sprintf("%s { data: { source: '%d', target: '%d'}}", comma, i, p.prefs[j])))
+				if comma == "" {
+					comma = ","
+				}
+			}
+
+		}
+		//{ data: { source: 'j', target: 'g' } },
+		w.Write([]byte(`];
+	</script>
+  </head>
+  <body>
+    <div id="cy"></div>
+    <!-- Load appplication code at the end to ensure DOM is loaded -->
+    <script src="graph.js"></script>
+  </body>
+</html>
+`))
 	})
 
 	m.Get("/test/encrypt", func(w http.ResponseWriter, r *http.Request) {

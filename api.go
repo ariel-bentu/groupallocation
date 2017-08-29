@@ -30,11 +30,14 @@ func getSheet(file string, name string) (*xlsx.Sheet, *xlsx.File) {
 }
 
 type IdNameJson struct {
-	Id         string `json:"id"`
-	Name       string `json:"name"`
-	IsUnite    bool   `json:"isUnite"`
-	IsInactive bool   `json:"isInactive"`
-	IsMale     bool   `json:"isMale"`
+	Id                string `json:"id"`
+	Name              string `json:"name"`
+	IsUnite           bool   `json:"isUnite"`
+	IsInactive        bool   `json:"isInactive"`
+	IsGenderSensitive bool   `json:"isGenderSensitive"`
+	IsSpreadEvenly    bool   `json:"isSpreadEvenly"`
+
+	IsMale bool `json:"isMale"`
 }
 
 type IdRefIDJson struct {
@@ -445,7 +448,7 @@ func getSubgroupList2(user *User, taskId int) ([]byte, error) {
 	var groups []IdNameJson
 
 	connect()
-	res, err := db.Query("select id, name, sgtype, inactive from subgroups where tenant=? and task=?", user.getTenant(), taskId)
+	res, err := db.Query("select id, name, sgtype, inactive, gendersensitive, speadevenly from subgroups where tenant=? and task=?", user.getTenant(), taskId)
 	if err != nil {
 		panic(err)
 	}
@@ -454,8 +457,11 @@ func getSubgroupList2(user *User, taskId int) ([]byte, error) {
 		var name string
 		var sgtype int
 		var inactive int
-		res.Scan(&id, &name, &sgtype, &inactive)
-		newG := IdNameJson{Id: fmt.Sprintf("%d", id), Name: name, IsUnite: (sgtype == 0), IsInactive: (inactive == 1)}
+		var spreadEvenly int
+		var genderSensitive int
+		res.Scan(&id, &name, &sgtype, &inactive, &genderSensitive, &spreadEvenly)
+		newG := IdNameJson{Id: fmt.Sprintf("%d", id), Name: name, IsUnite: (sgtype == 0), IsInactive: (inactive == 1),
+			IsSpreadEvenly: (spreadEvenly == 1), IsGenderSensitive: (genderSensitive == 1)}
 		groups = append(groups, newG)
 
 	}
@@ -487,14 +493,15 @@ func createNewSubgroup(user *User, taskId int, name string) {
 	}
 
 }
-func updateSubgroup(user *User, taskId int, groupId int, isUnite bool, isInactive bool) {
+func updateSubgroup(user *User, taskId int, groupId int, isUnite bool, isInactive bool, isGenderSensitive bool, isSpreadEvenly bool) {
 	connect()
 	sgType := 1
 	if isUnite {
 		sgType = 0
 	}
-	_, err := db.Exec("update subgroups set sgtype=?, inactive=? where tenant =? and task=? and id=?",
-		sgType, getIntFromBool(isInactive), user.getTenant(), taskId, groupId)
+	_, err := db.Exec("update subgroups set sgtype=?, inactive=? , gendersensitive=?, speadevenly=? where tenant =? and task=? and id=?",
+		sgType, getIntFromBool(isInactive), getIntFromBool(isGenderSensitive), getIntFromBool(isSpreadEvenly),
+		user.getTenant(), taskId, groupId)
 	if err != nil {
 		panic(err)
 	}

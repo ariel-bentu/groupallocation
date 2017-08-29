@@ -81,6 +81,8 @@ $(document).ready(function(){
     })
 
     $("#isUnite").change(setDirty("groupSave"));
+    $("#isSpreadEvenly").change(setDirty("groupSave"));
+    $("#isGenderSensitive").change(setDirty("groupSave"));
     $("#isInactive").change(setDirty("groupSave"));
     $("#groupSave").click(saveGroup);
     $("#btnDeleteTask").click(deleteTask)
@@ -202,6 +204,8 @@ $(document).ready(function(){
     <td/>
     <td>
         <input type="checkbox" id="isUnite">קבוצת איחוד</input><br/>
+        <input type="checkbox" id="isSpreadEvenly">פיזור מלא</input><br/>
+        <input type="checkbox" id="isGenderSensitive">רגיש למגדר </input><br/>
         <input type="checkbox" id="isInactive">כבוי זמנית</input>
     </td>
     <td/>

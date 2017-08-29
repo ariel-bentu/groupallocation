@@ -51,10 +51,10 @@ func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext) {
 			howManyGroupsToSpread = 2
 		}
 		c.maxAllowed = float64(len(c.members)) / howManyGroupsToSpread
-
 		if c.speadToAll {
 			c.minAllowed = c.maxAllowed - 1
 		}
+
 		//c.stillAllowOneToBeOneTooMany = c.maxAllowed > math.Floor(c.maxAllowed)
 		if c.boysCount/ec.groupsCount >= 2 && c.genderSensitive {
 			c.minBoys = 2
@@ -220,6 +220,19 @@ func (c *SubGroupConstraint) Validate(ec *ExecutionContext) bool {
 	return c.satisfied
 }
 */
+func (c *SubGroupConstraint) checkOnlyGroup(ec *ExecutionContext, grp int) bool {
+	for i := 0; i < ec.groupsCount; i++ {
+		if i != grp && c.countForGroup[i] > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *SubGroupConstraint) checkNoGroup(ec *ExecutionContext, grp int) bool {
+	return c.countForGroup[grp] == 0
+}
+
 func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candidate) bool {
 	if c.members == nil || c.disabled {
 		c.satisfied = true
@@ -227,12 +240,37 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 	}
 	k := candidate.Count()
 
-	if k < 2 || !c.IsUnite && k <= int(math.Ceil(c.maxAllowed)) {
+	maxAllowed := (1 + float64(ec.graceLevel)/10) * c.maxAllowed
+	minAllowed := (1 - float64(ec.graceLevel)/10) * c.minAllowed
+
+	if k < 2 || !c.IsUnite && k <= int(math.Ceil(maxAllowed)) {
 		c.satisfied = true
 		return true
 	}
 
 	boysLeft, girlsLeft := c.calculateMembersCounts(ec, candidate)
+
+	if c.desc == "1" {
+		c.satisfied = c.checkOnlyGroup(ec, 0)
+		if !c.satisfied {
+			c.unsatisfiedCount++
+		}
+		return c.satisfied
+	}
+	if c.desc == "2" {
+		c.satisfied = c.checkOnlyGroup(ec, 1)
+		if !c.satisfied {
+			c.unsatisfiedCount++
+		}
+		return c.satisfied
+	}
+	if c.desc == "not3" && ec.groupsCount > 2 {
+		c.satisfied = c.checkNoGroup(ec, 2)
+		if !c.satisfied {
+			c.unsatisfiedCount++
+		}
+		return c.satisfied
+	}
 
 	count := 0
 	if c.IsUnite {
@@ -249,7 +287,7 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 	}
 
 	for i := 0; i < ec.groupsCount; i++ {
-		if float64(c.countForGroup[i]) > math.Ceil(c.maxAllowed) {
+		if float64(c.countForGroup[i]) > math.Ceil(maxAllowed) {
 			return false
 		}
 
@@ -260,7 +298,7 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 		//}
 
 		//if diff > 0 && float64(left) < math.Floor(diff) { // diff - 0.5 {
-		if math.Floor(c.minAllowed)-float64(boysLeft+girlsLeft)-float64(c.countForGroup[i]) > 0 {
+		if math.Floor(minAllowed)-float64(boysLeft+girlsLeft)-float64(c.countForGroup[i]) > 0 {
 			return false
 		}
 

@@ -75,12 +75,16 @@ function saveGroup() {
         
         var isUnite = $("#isUnite").prop('checked');
         var isInactive = $("#isInactive").prop('checked');
-        var url = "/api/subgroup?task="+taskID+"&groupId="+sel.val() + "&isUnite="+isUnite+"&isInactive="+isInactive
+        var isSpreadEvenly = $("#isSpreadEvenly").prop('checked');
+        var isGenderSensitive = $("#isGenderSensitive").prop('checked');
+        
+        var url = "/api/subgroup?task="+taskID+"&groupId="+sel.val() + "&isUnite="+isUnite+"&isInactive="+isInactive+"&isSpreadEvenly="+isSpreadEvenly+"&isGenderSensitive="+isGenderSensitive
         $.ajax({
             url: url,
             type: 'PUT',
             success: function(result) {
                 showMessage("קבוצה עודכנה בהצלחה")
+                loadGroups();
                 $("#saveGroup").prop("disable", true)
             }
         });
@@ -152,6 +156,8 @@ function loadGroups() {
             var opt = $('<option>').text(value.name + " - \t\t"+(value.isUnite?"איחוד":"פירוד")).attr('value', value.id);
             $(opt).data('isUnite',value.isUnite)
             $(opt).data('isInactive',value.isInactive);
+            $(opt).data('isSpreadEvenly',value.isSpreadEvenly);
+            $(opt).data('isGenderSensitive',value.isGenderSensitive);
             $('#subgroups').append(opt)
         });
         selectFirst("subgroups")
@@ -179,6 +185,8 @@ function loadSubgroupPupils() {
             });
 
             $("#isUnite").prop('checked', sel.data('isUnite'));
+            $("#isGenderSensitive").prop('checked', sel.data('isGenderSensitive'));
+            $("#isSpreadEvenly").prop('checked', sel.data('isSpreadEvenly'));
             $("#isInactive").prop('checked', sel.data('isInactive'));
         })
         .done(function() {

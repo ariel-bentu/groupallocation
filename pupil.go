@@ -12,6 +12,7 @@ type Pupil struct {
 	numOfMoves            int32
 	groupsCount           int
 	unsatisfiedPrefsCount int64
+	prefInactive          bool
 }
 
 func (p *Pupil) IsMale() bool {

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -58,8 +59,12 @@ type ExecutionContext struct {
 
 	timeLimit int //in seconds
 
+	currentLevelCount int
+	graceLevel        int
+
 	currentIteration             int
-	levelChangeIteration         int
+	prefFailCount                int
+	prefThreashold               int64
 	statusCandidate              []int
 	bestSumOfSatisfiedPrefs      int
 	bestSumOfSatisfiedFirstPrefs int
@@ -75,6 +80,7 @@ func NewExecutionContext() *ExecutionContext {
 	ec.startTime = time.Now()
 	ec.done = false
 	ec.Cancel = false
+	ec.graceLevel = 0
 
 	t := time.Now().UnixNano()
 	ec.id = fmt.Sprintf("%d", t)
@@ -104,8 +110,8 @@ func (e *ExecutionContext) GetStatusHtml() (string, string) {
 	//	e.currentIteration/e.iterationCount*100)
 
 	sb := NewStringBuffer()
-	sb.AppendFormat("Candidate Length:%d, elappsed: %f.0, found results so far: %d<br>\n<div dir=\"ltr\">%s</div></br>\n", e.currentIteration, time.Now().Sub(e.startTime).Seconds(),
-		e.resultsCount, slice2String(e.statusCandidate))
+	sb.AppendFormat("Candidate Length:%d, elappsed: %f.0, iter: %d, graceLevel:%d, found results so far: %d<br>\n<div dir=\"ltr\">%s</div></br>\n", e.currentIteration, time.Now().Sub(e.startTime).Seconds(),
+		e.currentLevelCount, e.graceLevel, e.resultsCount, slice2String(e.statusCandidate))
 
 	for _, c := range e.Constraints {
 
@@ -249,7 +255,7 @@ func Initialize(file string) (*ExecutionContext, string) {
 func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 	ec := NewExecutionContext()
 	ec.taskId = taskId
-	ec.groupsCount = 2 //todo
+	ec.groupsCount = 3 //todo
 	connect()
 
 	err := NewStringBuffer()
@@ -395,18 +401,18 @@ func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 					}
 					included := boysIncluded + girlsIncluded
 					if included >= 2 {
-						if included > len(g2.members)/2 {
+						if included > int(math.Ceil(g2.maxAllowed)) {
 							//found a conflict g2 is completed included in g1
-							err.AppendFormat("Group %d is a unite group and is a too bigger subset of the seperatation group '%d' --> the group is being disabled</br>\n", g1.ID(), g2.ID())
+							err.AppendFormat("Group '%s' is a unite group and is a too bigger subset of the seperatation group '%s' --> the group is being disabled</br>\n", g1.desc, g2.desc)
 							g1.disabled = true
 						}
 						if boysIncluded > g2.boysCount-g2.minBoys {
-							err.AppendFormat("Group %d is a unite group which includes %d boys, which prevents spreading the boys evenly in group %d --> boys even spearding is disabled</br>\n", g1.ID(), boysIncluded, g2.ID())
+							err.AppendFormat("Group '%s' is a unite group which includes %d boys, which prevents spreading the boys evenly in group '%s' --> boys even spearding is disabled</br>\n", g1.desc, boysIncluded, g2.desc)
 
 							g2.minBoys = 0
 						}
 						if girlsIncluded > len(g2.members)-g2.boysCount-g2.minGirls {
-							err.AppendFormat("Group %d is a unite group which includes %d girls, which prevents spreading the girls evenly in group %d --> girls even spearding is disabled</br>\n", g1.ID(), girlsIncluded, g2.ID())
+							err.AppendFormat("Group '%s' is a unite group which includes %d girls, which prevents spreading the girls evenly in group '%s' --> girls even spearding is disabled</br>\n", g1.desc, girlsIncluded, g2.desc)
 
 							g2.minGirls = 0
 						}

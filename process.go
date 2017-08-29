@@ -1,6 +1,7 @@
 package main
 
 import "time"
+import "fmt"
 
 type PartialAssignment []int
 
@@ -24,6 +25,13 @@ func RunBackTrack(ec *ExecutionContext) {
 //c is a candidate: a slice of 0..k (k<num of pupils), each represents the group for a pupil
 
 func bt(ec *ExecutionContext, c []int) {
+
+	ec.currentLevelCount++
+	if ec.currentLevelCount > 20000000 && ec.graceLevel < 1 {
+		ec.currentLevelCount = 0
+		ec.graceLevel++
+	}
+
 	if time.Now().Sub(ec.startTime).Seconds() > float64(ec.timeLimit) && ec.resultsCount > 0 {
 
 		ec.Finish()
@@ -68,14 +76,40 @@ func bt(ec *ExecutionContext, c []int) {
 func accept(ec *ExecutionContext, c []int) bool {
 	k := len(c)
 
-	p := ec.pupils[k-1]
-	if p.locked && p.lockedGroup != c[k-1] {
-		//return false
+	//p := ec.pupils[k-1]
+
+	//constraints
+	for _, csg := range ec.Constraints {
+
+		if !csg.ValidateNew(ec, PartialAssignment(c)) {
+			csg.unsatisfiedCount++
+			return false
+		}
 	}
 
 	//prefs
+
+	if ec.prefFailCount > 10000000 && ec.resultsCount == 0 {
+		//can't pass the pref, start disabling
+		for _, p := range ec.pupils {
+			if p.unsatisfiedPrefsCount > ec.prefThreashold {
+				ec.prefThreashold = p.unsatisfiedPrefsCount
+			}
+		}
+		ec.prefFailCount = 0
+	}
+
 	for i := len(c) - 1; i >= 0; i-- {
-		p = ec.pupils[i]
+		p := ec.pupils[i]
+
+		if p.prefInactive {
+			continue
+		}
+
+		if ec.prefThreashold > 0 && p.unsatisfiedPrefsCount > ec.prefThreashold {
+			p.prefInactive = true
+			fmt.Printf("Disable prefs for %s", p.name)
+		}
 
 		if len(p.prefs) > 0 {
 
@@ -96,20 +130,16 @@ func accept(ec *ExecutionContext, c []int) bool {
 
 			if inRangeCount > 0 && inRangeCount == len(p.prefs) && refCount == 0 {
 				p.unsatisfiedPrefsCount++
+
+				ec.prefFailCount++
 				return false
 			}
 
 		}
 	}
 
-	//constraints
-	for _, csg := range ec.Constraints {
+	//ec.prefFailCount = 0
 
-		if !csg.ValidateNew(ec, PartialAssignment(c)) {
-			csg.unsatisfiedCount++
-			return false
-		}
-	}
 	return true
 }
 
