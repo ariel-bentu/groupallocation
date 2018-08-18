@@ -309,6 +309,7 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		pupils.Scan(&id, &name, &gender)
 		p := new(Pupil)
 		p.startGroup = assign
+		p.optionsLeft = ec.groupsCount - 1
 		assign++
 		if assign == ec.groupsCount {
 			assign = 0
@@ -338,7 +339,29 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 
 	validateConflicts(ec, err)
 
+	lockLargestUniteGroup(ec)
+
 	return ec, err.ToString()
+}
+
+func lockLargestUniteGroup(ec *ExecutionContext) {
+	largest := -1
+	highestCount := 0
+	for i := 0; i < len(ec.Constraints); i++ {
+		if ec.Constraints[i].IsUnite && len(ec.Constraints[i].members) > highestCount {
+			largest = i
+			highestCount = len(ec.Constraints[i].members)
+		}
+	}
+
+	if largest > -1 {
+		for i := 0; i < len(ec.Constraints[largest].members); i++ {
+			pupilInx := ec.Constraints[largest].members[i]
+			ec.pupils[pupilInx].startGroup = 0
+			ec.pupils[pupilInx].locked = true
+			ec.pupils[pupilInx].optionsLeft = 0
+		}
+	}
 }
 
 func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
@@ -565,6 +588,17 @@ func initializePreferences2(ec *ExecutionContext, user *User, taskId int) {
 		p := ec.pupils[pupilIndex]
 		p.prefs = append(p.prefs, pupilRefIndex)
 
+		//sort highest first
+		for i := len(p.prefs) - 2; i >= 0; i-- {
+			if p.prefs[i+1] > p.prefs[i] {
+				temp := p.prefs[i+1]
+				p.prefs[i+1] = p.prefs[i]
+				p.prefs[i] = temp
+			} else {
+				break
+			}
+		}
+
 	}
 
 }
@@ -581,6 +615,8 @@ func InitializeGroupsMembers2(ec *ExecutionContext, user *User, taskId int) {
 		panic(err)
 	}
 	for _, p := range ec.pupils {
+		p.uniteGroups = []int{}
+		p.seperationGroups = []int{}
 		pupilIndex := ec.findPupil(p.name)
 
 		ec.allGroup.AddMember(pupilIndex, ec)
@@ -599,6 +635,11 @@ func InitializeGroupsMembers2(ec *ExecutionContext, user *User, taskId int) {
 			grpIndex := ec.findGroup(groupId)
 			sg := ec.Constraints[grpIndex]
 			sg.AddMember(pupilIndex, ec)
+			if sg.IsUnite {
+				p.uniteGroups = append(p.uniteGroups, grpIndex)
+			} else {
+				p.seperationGroups = append(p.seperationGroups, grpIndex)
+			}
 			p.groupsCount++
 		}
 	}

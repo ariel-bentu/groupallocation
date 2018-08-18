@@ -5,6 +5,7 @@ type Pupil struct {
 	name                  string
 	isMale                bool
 	startGroup            int
+	optionsLeft           int
 	prefs                 []int
 	groupBestScore        int
 	lockedGroup           int
@@ -13,6 +14,8 @@ type Pupil struct {
 	groupsCount           int
 	unsatisfiedPrefsCount int64
 	prefInactive          bool
+	uniteGroups           []int
+	seperationGroups      []int
 }
 
 func (p *Pupil) IsMale() bool {

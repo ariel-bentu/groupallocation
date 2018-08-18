@@ -192,7 +192,7 @@ func connect() {
 	if db == nil {
 		path := os.Getenv("GA_DBPATH")
 		if path == "" {
-			path = "/Users/i022021/Dev/tmp/groups.db"
+			path = "/Users/i022021/dev/tmp/groups.db"
 		}
 		var err error
 		db, err = sql.Open("sqlite3", path)

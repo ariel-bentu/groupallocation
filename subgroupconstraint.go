@@ -239,8 +239,12 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 		return true
 	}
 	k := candidate.Count()
+	maxAllowed := 34.0
+	if c == ec.allGroup {
 
-	maxAllowed := (1 + float64(ec.graceLevel)/10) * c.maxAllowed
+	} else {
+		maxAllowed = (1 + float64(ec.graceLevel)/10) * c.maxAllowed
+	}
 	minAllowed := (1 - float64(ec.graceLevel)/10) * c.minAllowed
 
 	if k < 2 || !c.IsUnite && k <= int(math.Ceil(maxAllowed)) {
@@ -386,6 +390,18 @@ func (c *SubGroupConstraint) AddMember(pupilInx int, ec *ExecutionContext) {
 	p := ec.pupils[pupilInx]
 
 	c.members = append(c.members, pupilInx)
+
+	//sort highest first
+	for i := len(c.members) - 2; i >= 0; i-- {
+		if c.members[i+1] > c.members[i] {
+			temp := c.members[i+1]
+			c.members[i+1] = c.members[i]
+			c.members[i] = temp
+		} else {
+			break
+		}
+	}
+
 	if p.IsMale() {
 		c.boysCount++
 	}
