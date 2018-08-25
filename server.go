@@ -18,6 +18,16 @@ import (
 
 var user *User = &User{name: "ariel", tenant: "ariel"}
 
+var DebugVerbose bool
+
+func stop() {
+	//for breakpoints
+}
+func stop2(a []int) {
+	//for breakpoints
+
+}
+
 func getParamInt(r *http.Request, param string) int {
 	val := r.URL.Query().Get(param)
 	res, err := strconv.Atoi(val)
@@ -158,10 +168,13 @@ func main() {
 		var ec *ExecutionContext
 		var err string
 		if taskId == -1 {
-			file := r.URL.Query().Get("file")
-			ec, err = Initialize(file)
+			//file := r.URL.Query().Get("file")
+			//ec, err = Initialize(file)
+			w.Write([]byte("Not implemented"))
+			return
 		} else {
 			ec, err = Initialize2(user, taskId)
+			ec.InitialErr = err
 		}
 		if ec == nil {
 			w.Write([]byte("<html><body>Execution aborted. </br>\n" + err + "</br></body></html>"))
@@ -178,7 +191,7 @@ func main() {
 		go RunBackTrack(ec)
 		w.Write([]byte(`<html><body>Execution started.to check status, click <a href="/status?e=` + ec.ID() + `" >here</a></br>`))
 		if len(err) > 0 {
-			w.Write([]byte("Warnings: </br>" + err))
+			w.Write([]byte("Warnings: </br>" + strings.Replace(err, "\n", "<br/>\n", -1)))
 		}
 		w.Write([]byte("</body></html>"))
 	})

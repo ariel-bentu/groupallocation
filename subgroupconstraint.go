@@ -21,11 +21,11 @@ type SubGroupConstraint struct {
 	genderSensitive bool
 	speadToAll      bool
 
-	countForGroup [MAX_NUM_OF_GROUPS]int
+	countForGroup []int
 
-	oversizedForGroup [MAX_NUM_OF_GROUPS]bool
-	boysForGroup      [MAX_NUM_OF_GROUPS]int
-	girlsForGroup     [MAX_NUM_OF_GROUPS]int
+	oversizedForGroup []bool
+	boysForGroup      []int
+	girlsForGroup     []int
 	boysCount         int
 	minBoys           int
 	minGirls          int
@@ -39,11 +39,15 @@ type SubGroupConstraint struct {
 	disabled         bool
 }
 
-func NewSubGroupConstraint(id int, desc string, isUnite bool, weight int) *SubGroupConstraint {
-	return &SubGroupConstraint{id: id, desc: desc, IsUnite: isUnite, weight: weight, Level: 1}
+func NewSubGroupConstraint(id int, desc string, isUnite bool, weight int, groupsCount int) *SubGroupConstraint {
+	g := SubGroupConstraint{id: id, desc: desc, IsUnite: isUnite, weight: weight, Level: 1}
+	g.countForGroup = make([]int, groupsCount)
+	g.boysForGroup = make([]int, groupsCount)
+	g.girlsForGroup = make([]int, groupsCount)
+	return &g
 }
 
-func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext) {
+func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext, err *stringBuffer) {
 	if !c.IsUnite {
 		howManyGroupsToSpread := float64(ec.groupsCount)
 		c.minAllowed = 0
@@ -107,6 +111,9 @@ func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext) {
 				if count == len(p.prefs) {
 					//add this pupil to c group
 					c.AddMember(pupilInx, ec)
+					//todo add message
+					err.AppendFormat("Adding '%s' to group '%s' as all its preferences in that unite group",
+						ec.pupils[pupilInx].name, c.desc)
 				}
 			}
 		}
@@ -234,12 +241,12 @@ func (c *SubGroupConstraint) checkNoGroup(ec *ExecutionContext, grp int) bool {
 }
 
 func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candidate) bool {
-	if c.members == nil || c.disabled {
+	if len(c.members) == 0 || c.disabled {
 		c.satisfied = true
 		return true
 	}
 	k := candidate.Count()
-	maxAllowed := 34.0
+	maxAllowed := 34.0 //todo from config
 	if c == ec.allGroup {
 
 	} else {
@@ -253,29 +260,29 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 	}
 
 	boysLeft, girlsLeft := c.calculateMembersCounts(ec, candidate)
-
-	if c.desc == "1" {
-		c.satisfied = c.checkOnlyGroup(ec, 0)
-		if !c.satisfied {
-			c.unsatisfiedCount++
+	/*
+		if c.desc == "1" {
+			c.satisfied = c.checkOnlyGroup(ec, 0)
+			if !c.satisfied {
+				c.unsatisfiedCount++
+			}
+			return c.satisfied
 		}
-		return c.satisfied
-	}
-	if c.desc == "2" {
-		c.satisfied = c.checkOnlyGroup(ec, 1)
-		if !c.satisfied {
-			c.unsatisfiedCount++
+		if c.desc == "2" {
+			c.satisfied = c.checkOnlyGroup(ec, 1)
+			if !c.satisfied {
+				c.unsatisfiedCount++
+			}
+			return c.satisfied
 		}
-		return c.satisfied
-	}
-	if c.desc == "not3" && ec.groupsCount > 2 {
-		c.satisfied = c.checkNoGroup(ec, 2)
-		if !c.satisfied {
-			c.unsatisfiedCount++
+		if c.desc == "not3" && ec.groupsCount > 2 {
+			c.satisfied = c.checkNoGroup(ec, 2)
+			if !c.satisfied {
+				c.unsatisfiedCount++
+			}
+			return c.satisfied
 		}
-		return c.satisfied
-	}
-
+	*/
 	count := 0
 	if c.IsUnite {
 		for i := 0; i < ec.groupsCount; i++ {
@@ -450,7 +457,7 @@ func (sg *SubGroupConstraint) printOneInfo(ec *ExecutionContext) string {
 func slice2String(arr []int) string {
 	return strings.Trim(strings.Replace(fmt.Sprint(arr), " ", ",", -1), "[]")
 }
-func array2String(arr [MAX_NUM_OF_GROUPS]int, n int) string {
+func array2String(arr []int, n int) string {
 	ret := ""
 	for i := 0; i < n; i++ {
 		ret += fmt.Sprintf(", %d", arr[i])

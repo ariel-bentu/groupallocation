@@ -33,7 +33,7 @@ func (sb *stringBuffer) Append(str string) *stringBuffer {
 }
 
 func (sb *stringBuffer) AppendFormat(str string, args ...interface{}) *stringBuffer {
-	return sb.Append(fmt.Sprintf(str, args...))
+	return sb.Append(fmt.Sprintf(str+"\n", args...))
 }
 
 func (sb *stringBuffer) AppendLine(str string) *stringBuffer {

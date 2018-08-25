@@ -57,8 +57,11 @@ type ExecutionContext struct {
 	taskId         int
 	file           string
 
+	domainValues *ValuesDomainMain
+
 	timeLimit int //in seconds
 
+	MaxDepth          int
 	currentLevelCount int
 	graceLevel        int
 
@@ -71,6 +74,7 @@ type ExecutionContext struct {
 	bestCandidate                []int
 	resultsCount                 int
 	resultsScoreHistory          []int
+	InitialErr                   string
 }
 
 var RunningExecutions map[string]*ExecutionContext
@@ -110,20 +114,87 @@ func (e *ExecutionContext) GetStatusHtml() (string, string) {
 	//	e.currentIteration/e.iterationCount*100)
 
 	sb := NewStringBuffer()
-	sb.AppendFormat("Candidate Length:%d, elappsed: %f.0, iter: %d, graceLevel:%d, found results so far: %d<br>\n<div dir=\"ltr\">%s</div></br>\n", e.currentIteration, time.Now().Sub(e.startTime).Seconds(),
-		e.currentLevelCount, e.graceLevel, e.resultsCount, slice2String(e.statusCandidate))
+	sb.AppendFormat("Candidate Length:%d, Max: %d, elappsed: %f.0, iter: %s, graceLevel:%d, found results so far: %d<br>\n<div dir=\"ltr\">%s</div></br>\n", e.currentIteration, e.MaxDepth, time.Now().Sub(e.startTime).Seconds(),
+		FormatInt2String(e.currentLevelCount), e.graceLevel, e.resultsCount, slice2String(e.statusCandidate))
 
 	for _, c := range e.Constraints {
 
 		sb.AppendFormat("%s - %d</br>\n", c.Description(), c.unsatisfiedCount)
 	}
-	sb.Append("\n</br>-----------------------------------</br>\n")
-	for _, p := range e.pupils {
-		sb.AppendFormat("%s - %d</br>\n", p.name, p.unsatisfiedPrefsCount)
+	sb.Append("\n</br><table border='1'><tr><th>#</th><th>name</th><th>Pref</th><th>Groups</th><th>Failed Preferences</th><th>Failed Groups<th></th></tr>\n")
+	for i, p := range e.pupils {
+		bgcolor := ""
+		if p.unsatisfiedPrefsCount > 0 {
+			bgcolor = `bgcolor="#FF0000"`
+		}
+
+		sb.AppendFormat("<tr><td>%d</td><td>%s</td><td %s>%s</td><td>%s</td><td>%s</td><td>%s</td><tr>\n",
+			i, p.name, bgcolor, FormatInt642String(p.unsatisfiedPrefsCount), getPrefHtml(e, p), getGroupsHtml(e, p), getFailedGroupHTMLMessage(e, p.unsatisfiedGroupsCount))
 	}
+	sb.Append("</table><br/><br/>")
+
+	sb.Append(strings.Replace(e.InitialErr, "\n", "<br/>\n", -1))
 
 	return sb.ToString(), ""
 }
+
+func FormatInt2String(v int) string {
+	str := strconv.Itoa(v)
+	return FormatHuman(str)
+}
+func FormatInt642String(v int64) string {
+	if v > 999 {
+		stop()
+	}
+	str := strconv.FormatInt(v, 10)
+	return FormatHuman(str)
+}
+func FormatHuman(str string) string {
+	ret := ""
+	counter := 0
+	for i := len(str) - 1; i >= 0; i-- {
+		counter++
+		ret = str[i:i+1] + ret
+		if counter == 3 && i > 0 {
+			ret = "," + ret
+			counter = 0
+		}
+
+	}
+	return ret
+}
+
+func getGroupsHtml(e *ExecutionContext, p *Pupil) string {
+	sb := NewStringBuffer()
+	for i, v := range p.uniteGroups {
+		sb.AppendFormat("%d: U - %s (B: %d, G:%d)<br/>", i+1, e.Constraints[v].desc, e.Constraints[v].boysCount, len(e.Constraints[v].members)-e.Constraints[v].boysCount)
+	}
+
+	for i, v := range p.seperationGroups {
+		sb.AppendFormat("%d: S - %s (B: %d, G:%d)<br/>", i+1, e.Constraints[v].desc, e.Constraints[v].boysCount, len(e.Constraints[v].members)-e.Constraints[v].boysCount)
+	}
+
+	return sb.ToString()
+
+}
+func getPrefHtml(e *ExecutionContext, p *Pupil) string {
+	sb := NewStringBuffer()
+	for i, v := range p.prefs {
+		sb.AppendFormat("%d: %s (%d)<br/>", i+1, e.pupils[v].name, v)
+	}
+	return sb.ToString()
+
+}
+func getFailedGroupHTMLMessage(e *ExecutionContext, failedArray []int64) string {
+	sb := NewStringBuffer()
+	for i, v := range failedArray {
+		if v > 0 {
+			sb.AppendFormat("%s: %s<br/>", e.Constraints[i].desc, FormatInt642String(v))
+		}
+	}
+	return sb.ToString()
+}
+
 func (e *ExecutionContext) Finish() {
 	e.done = true
 	for i, p := range e.pupils {
@@ -161,6 +232,7 @@ func (ec *ExecutionContext) GetIntParam(name string) int {
 
 }
 
+/*
 func Initialize(file string) (*ExecutionContext, string) {
 	ec := NewExecutionContext()
 	ec.file = file
@@ -175,7 +247,7 @@ func Initialize(file string) (*ExecutionContext, string) {
 		v, _ := groupsSheet.Cell(i, 1).FormattedValue()
 		isUnite := (v == UNITE_VALUE)
 		desc, _ := groupsSheet.Cell(i, 2).FormattedValue()
-		g := NewSubGroupConstraint(id, desc, isUnite, 0)
+		g := NewSubGroupConstraint(id, desc, isUnite, 0, ec.groupsCount)
 		if !isUnite {
 			genderSensitve, err := groupsSheet.Cell(i, 3).Int()
 			if err == nil && genderSensitve == 1 {
@@ -189,12 +261,12 @@ func Initialize(file string) (*ExecutionContext, string) {
 		}
 		ec.Constraints = append(ec.Constraints, g)
 	}
-	ec.maleGroup = NewSubGroupConstraint(i, "בנים", false, 70)
+	ec.maleGroup = NewSubGroupConstraint(i, "בנים", false, 70, ec.groupsCount)
 	ec.maleGroup.genderSensitive = true
 	ec.maleGroup.speadToAll = true
 	ec.Constraints = append(ec.Constraints, ec.maleGroup)
 	i++
-	ec.allGroup = NewSubGroupConstraint(i, "כולם", false, 200)
+	ec.allGroup = NewSubGroupConstraint(i, "כולם", false, 200, ec.groupsCount)
 	ec.allGroup.genderSensitive = true
 	ec.allGroup.speadToAll = true
 	ec.Constraints = append(ec.Constraints, ec.allGroup)
@@ -244,14 +316,14 @@ func Initialize(file string) (*ExecutionContext, string) {
 	InitializeGroupsMembers(ec, pupilsSheet)
 
 	for _, c := range ec.Constraints {
-		c.AfterInit(ec)
+		c.AfterInit(ec, err)
 	}
 
 	validateConflicts(ec, err)
 
 	return ec, err.ToString()
 }
-
+*/
 func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 	ec := NewExecutionContext()
 	ec.taskId = taskId
@@ -273,7 +345,7 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		var inactive int
 		groups.Scan(&id, &name, &sgtype, &gendersensitive, &speadevenly, &inactive)
 		isUnite := sgtype == 0
-		g := NewSubGroupConstraint(id, name, isUnite, 0)
+		g := NewSubGroupConstraint(id, name, isUnite, 0, ec.groupsCount)
 		if !isUnite {
 			g.genderSensitive = (gendersensitive == 1)
 			g.speadToAll = (speadevenly == 1)
@@ -281,16 +353,17 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		if inactive == 1 {
 			g.disabled = true
 		}
+
 		ec.Constraints = append(ec.Constraints, g)
 	}
 	groups.Close()
 
-	ec.maleGroup = NewSubGroupConstraint(9999, "בנים", false, 70)
+	ec.maleGroup = NewSubGroupConstraint(9999, "בנים", false, 70, ec.groupsCount)
 	ec.maleGroup.genderSensitive = true
 	ec.maleGroup.speadToAll = true
 	ec.Constraints = append(ec.Constraints, ec.maleGroup)
 
-	ec.allGroup = NewSubGroupConstraint(10000, "כולם", false, 200)
+	ec.allGroup = NewSubGroupConstraint(10000, "כולם", false, 200, ec.groupsCount)
 	ec.allGroup.genderSensitive = true
 	ec.allGroup.speadToAll = true
 	ec.Constraints = append(ec.Constraints, ec.allGroup)
@@ -300,7 +373,7 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 	if e != nil {
 		panic(e)
 	}
-	assign := 0
+	//assign := 0
 
 	for pupils.Next() {
 		var id int
@@ -308,12 +381,15 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		var gender int
 		pupils.Scan(&id, &name, &gender)
 		p := new(Pupil)
-		p.startGroup = assign
-		p.optionsLeft = ec.groupsCount - 1
-		assign++
-		if assign == ec.groupsCount {
-			assign = 0
-		}
+		//p.startGroup = assign
+
+		//p.InitValuesDomain(ec.groupsCount)
+		//p.optionsLeft = ec.groupsCount - 1
+
+		//assign++
+		//if assign == ec.groupsCount {
+		//	assign = 0
+		//}
 		ec.pupils = append(ec.pupils, p)
 		p.name = name
 		p.id = id
@@ -322,7 +398,10 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 
 	for _, p := range ec.pupils {
 		p.groupsCount = 0
+		p.unsatisfiedGroupsCount = make([]int64, len(ec.Constraints))
 	}
+
+	ec.domainValues = NewValuesDomainMain(ec.groupsCount, len(ec.pupils), len(ec.Constraints))
 
 	initializePreferences2(ec, user, taskId)
 	InitializeGroupsMembers2(ec, user, taskId)
@@ -334,16 +413,17 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 	InitializeGroupsMembers2(ec, user, taskId)
 
 	for _, c := range ec.Constraints {
-		c.AfterInit(ec)
+		c.AfterInit(ec, err)
 	}
 
 	validateConflicts(ec, err)
 
-	lockLargestUniteGroup(ec)
+	//lockLargestUniteGroup(ec)
 
 	return ec, err.ToString()
 }
 
+/*
 func lockLargestUniteGroup(ec *ExecutionContext) {
 	largest := -1
 	highestCount := 0
@@ -357,48 +437,49 @@ func lockLargestUniteGroup(ec *ExecutionContext) {
 	if largest > -1 {
 		for i := 0; i < len(ec.Constraints[largest].members); i++ {
 			pupilInx := ec.Constraints[largest].members[i]
-			ec.pupils[pupilInx].startGroup = 0
-			ec.pupils[pupilInx].locked = true
+			ec.pupils[pupilInx].SetDomainOnlyOne(0)
 			ec.pupils[pupilInx].optionsLeft = 0
 		}
 	}
 }
+*/
 
 func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 	//check if two unite sub-groups overlap and if yes, tigh them together
-	merged := true
-	for merged {
-		merged = false
-		for i := 0; i < len(ec.Constraints); i++ {
-			g1 := ec.Constraints[i]
-			if g1.disabled {
-				continue
-			}
-			if g1.IsUnite {
-				for j := 0; j < len(ec.Constraints); j++ {
-					g2 := ec.Constraints[j]
-					if g2.disabled {
-						continue
-					}
-					if i != j && g2.IsUnite {
-						for _, m := range g2.members {
-							if g1.IsMember(m) {
-								//Found overlap
-								err.AppendFormat("Unite group '%s' overlaps with unite group '%s' - at least %s is in both. merging groups</br>\n", g1.Description(), g2.Description(), ec.pupils[m].name)
-								merged = true
-								mergeSubGroups(ec, i, j)
-								break
+	/*
+		merged := true
+		for merged {
+			merged = false
+			for i := 0; i < len(ec.Constraints); i++ {
+				g1 := ec.Constraints[i]
+				if g1.disabled {
+					continue
+				}
+				if g1.IsUnite {
+					for j := 0; j < len(ec.Constraints); j++ {
+						g2 := ec.Constraints[j]
+						if g2.disabled {
+							continue
+						}
+						if i != j && g2.IsUnite {
+							for _, m := range g2.members {
+								if g1.IsMember(m) {
+									//Found overlap
+									err.AppendFormat("Unite group '%s' overlaps with unite group '%s' - at least %s is in both. merging groups</br>\n", g1.Description(), g2.Description(), ec.pupils[m].name)
+									merged = true
+									mergeSubGroups(ec, i, j, err)
+									break
+								}
 							}
 						}
 					}
 				}
-			}
-			if merged {
-				break
+				if merged {
+					break
+				}
 			}
 		}
-	}
-
+	*/
 	for i := 0; i < len(ec.Constraints); i++ {
 		g1 := ec.Constraints[i]
 		if g1.disabled {
@@ -457,7 +538,7 @@ func validateConflicts(ec *ExecutionContext, err *stringBuffer) {
 	}
 }
 
-func mergeSubGroups(ec *ExecutionContext, g1 int, g2 int) {
+func mergeSubGroups(ec *ExecutionContext, g1 int, g2 int, err *stringBuffer) {
 	ec.Constraints[g1].desc = fmt.Sprintf("מיזוג: '%s' עם '%s'", ec.Constraints[g1].desc, ec.Constraints[g2].desc)
 	for _, m := range ec.Constraints[g2].members {
 		if !ec.Constraints[g1].IsMember(m) {
@@ -468,7 +549,7 @@ func mergeSubGroups(ec *ExecutionContext, g1 int, g2 int) {
 	//removeConstraint(g2, ec)
 	ec.Constraints[g2].disabled = true
 
-	ec.Constraints[g1].AfterInit(ec)
+	ec.Constraints[g1].AfterInit(ec, err)
 }
 
 func removeConstraint(cIndex int, ec *ExecutionContext) {
@@ -569,6 +650,7 @@ func initializePreferences2(ec *ExecutionContext, user *User, taskId int) {
 
 	for _, p := range ec.pupils {
 		p.prefs = nil
+		p.incomingPrefs = nil
 	}
 
 	prefs, err := db.Query("select pupilId, refPupilId, priority from pupilPrefs where tenant=? and task=? order by pupilId, priority",
@@ -601,6 +683,12 @@ func initializePreferences2(ec *ExecutionContext, user *User, taskId int) {
 
 	}
 
+	for i, p := range ec.pupils {
+		for _, pref := range p.prefs {
+			ec.pupils[pref].incomingPrefs = append(ec.pupils[pref].incomingPrefs, i)
+		}
+	}
+
 }
 
 func InitializeGroupsMembers2(ec *ExecutionContext, user *User, taskId int) {
@@ -614,14 +702,18 @@ func InitializeGroupsMembers2(ec *ExecutionContext, user *User, taskId int) {
 	if err != nil {
 		panic(err)
 	}
+	mailIndex := ec.findGroup(ec.maleGroup.ID())
+	allIndex := ec.findGroup(ec.allGroup.ID())
 	for _, p := range ec.pupils {
 		p.uniteGroups = []int{}
 		p.seperationGroups = []int{}
 		pupilIndex := ec.findPupil(p.name)
 
 		ec.allGroup.AddMember(pupilIndex, ec)
+		p.seperationGroups = append(p.seperationGroups, allIndex)
 		if p.IsMale() {
 			ec.maleGroup.AddMember(pupilIndex, ec)
+			p.seperationGroups = append(p.seperationGroups, mailIndex)
 			p.groupsCount++
 		}
 		res, err := stmt.Query(user.getTenant(), taskId, p.id)

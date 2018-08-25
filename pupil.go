@@ -1,21 +1,20 @@
 package main
 
 type Pupil struct {
-	id                    int
-	name                  string
-	isMale                bool
-	startGroup            int
-	optionsLeft           int
-	prefs                 []int
-	groupBestScore        int
-	lockedGroup           int
-	locked                bool
-	numOfMoves            int32
-	groupsCount           int
-	unsatisfiedPrefsCount int64
-	prefInactive          bool
-	uniteGroups           []int
-	seperationGroups      []int
+	id                     int
+	name                   string
+	isMale                 bool
+	prefs                  []int
+	incomingPrefs          []int
+	groupBestScore         int
+	numOfMoves             int32
+	groupsCount            int
+	unsatisfiedPrefsCount  int64
+	unsatisfiedGroupsCount []int64
+
+	prefInactive     bool
+	uniteGroups      []int
+	seperationGroups []int
 }
 
 func (p *Pupil) IsMale() bool {
@@ -24,9 +23,11 @@ func (p *Pupil) IsMale() bool {
 
 type ByGroupCount []*Pupil
 
-func (a ByGroupCount) Len() int           { return len(a) }
-func (a ByGroupCount) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByGroupCount) Less(i, j int) bool { return a[i].groupsCount > a[j].groupsCount }
+func (a ByGroupCount) Len() int      { return len(a) }
+func (a ByGroupCount) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByGroupCount) Less(i, j int) bool {
+	return a[i].groupsCount > a[j].groupsCount || (a[i].groupsCount == a[j].groupsCount && len(a[i].prefs) > len(a[j].prefs))
+}
 
 type SortPupilList struct {
 	list []int
