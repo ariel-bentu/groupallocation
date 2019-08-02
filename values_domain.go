@@ -79,17 +79,9 @@ func (vd *ValuesDomainMain) PushDomainRestriction(origin int, target int, values
 	if DebugVerbose {
 		fmt.Printf("Push: %d, %d\n", origin, target)
 	}
-	if origin == target {
-		stop()
-	}
+	
 	v := vd.getPooledValuesDomain()
-	if origin == 26 && len(values) == 2 && values[0] == 2 && values[1] == 0 {
-		debug++
-		//print(debug)
-		if debug == 6 {
-			//DebugVerbose = true
-		}
-	}
+	
 
 	v.origin = origin
 	v.allowedValues = values

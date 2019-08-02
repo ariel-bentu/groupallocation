@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"math/rand"
 	"time"
 )
 
@@ -20,6 +21,17 @@ func RunBackTrack(ec *ExecutionContext) {
 	if ec.done {
 		ec.Cancel = false
 	} else {
+		for ec.graceLevel < 10 {
+			ec.graceLevel++
+			bt(ec, first(ec, nil))
+			if ec.done {
+				break
+			}
+		}
+
+	}
+
+	if !ec.done {
 		ec.Cancel = true
 	}
 }
@@ -30,7 +42,7 @@ func bt(ec *ExecutionContext, c []int) int {
 
 	ec.currentLevelCount++
 
-	if ec.currentLevelCount > 10000000 && ec.graceLevel < 6 {
+	if ec.currentLevelCount > 30000000 && ec.graceLevel < 6 && ec.resultsCount == 0 {
 		ec.currentLevelCount = 0
 		ec.graceLevel++
 	}
@@ -60,6 +72,7 @@ func bt(ec *ExecutionContext, c []int) int {
 			ec.bestSumOfSatisfiedFirstPrefs = someOfSatFirsts
 			ec.bestCandidate = make([]int, len(c))
 			copy(ec.bestCandidate, c)
+			ec.numOfUpgrades++
 		}
 		ec.resultsCount++
 		return -1
@@ -70,10 +83,6 @@ func bt(ec *ExecutionContext, c []int) int {
 	//}
 
 	jump := -1
-	vd := ec.domainValues.getEffectiveDomainValues(80)
-	if len(c) == 70 {
-		stop2(vd.values)
-	}
 
 	domainNotEmpty := fc(ec, c, len(c)-1, len(c)-1)
 
@@ -85,11 +94,12 @@ func bt(ec *ExecutionContext, c []int) int {
 
 		ec.currentIteration = len(c) + 1
 		nextCandidate := first(ec, c)
-
-		for nextCandidate != nil && !ec.done {
+		allowProceed := validateNoLastPerf(ec, nextCandidate)
+		for allowProceed && nextCandidate != nil && !ec.done {
 			jump = bt(ec, nextCandidate)
 			if jump == -1 || len(c) <= jump+1 {
 				nextCandidate = next(ec, nextCandidate)
+				allowProceed = validateNoLastPerf(ec, nextCandidate)
 			} else {
 				nextCandidate = nil
 			}
@@ -100,98 +110,78 @@ func bt(ec *ExecutionContext, c []int) int {
 	return jump
 }
 
-func accept(ec *ExecutionContext, c []int) int {
-	//k := len(c)
+// func accept(ec *ExecutionContext, c []int) int {
+// 	//k := len(c)
 
-	//constraints
-	for _, csg := range ec.Constraints {
-		if csg.IsUnite {
-			//no need to check because of the domain retrictions
-			continue
-		}
-		if !csg.ValidateNew(ec, PartialAssignment(c)) {
-			csg.unsatisfiedCount++
+// 	//constraints
+// 	for _, csg := range ec.Constraints {
+// 		if csg.IsUnite {
+// 			//no need to check because of the domain retrictions
+// 			continue
+// 		}
+// 		if !csg.ValidateNew(ec, PartialAssignment(c)) {
+// 			csg.unsatisfiedCount++
 
-			//try to jump back
+// 			//try to jump back
 
-			jump := -1
+// 			jump := -1
 
-			return jump
-		}
-	}
+// 			return jump
+// 		}
+// 	}
 
-	//prefs
-	/*
-		if ec.prefFailCount > 10000000 && ec.resultsCount == 0 {
-			//can't pass the pref, start disabling
-			for _, p := range ec.pupils {
-				if p.unsatisfiedPrefsCount > ec.prefThreashold {
-					ec.prefThreashold = p.unsatisfiedPrefsCount
-				}
-			}
-			ec.prefFailCount = 0
-		}
-	*/
+// 	for i := len(c) - 1; i >= 0; i-- {
+// 		p := ec.pupils[i]
 
-	for i := len(c) - 1; i >= 0; i-- {
-		p := ec.pupils[i]
+// 		if p.prefInactive || len(p.prefs) == 0 {
+// 			continue
+// 		}
+// 		inRange, found := prefStatus(p, c, i)
+// 		if inRange == len(p.prefs) &&
+// 			(found == 0 ||
+// 				//only last pref accepted
+// 				len(p.prefs) == NUM_OF_PREF && found == 1 &&
+// 					c[p.origOrderPrefs[NUM_OF_PREF-1]] == c[i]) {
 
-		if p.prefInactive {
-			continue
-		}
-		satisfied, _, _ := prefStatus(p, c, i)
-		if !satisfied {
+// 			p.unsatisfiedPrefsCount++
 
-			p.unsatisfiedPrefsCount++
-			if p.unsatisfiedPrefsCount > 100000 {
-				stop()
-			}
+// 			ec.prefFailCount++
 
-			//optionsLeftForPupil := ec.domainValues.GetEffectiveDomainValues(i).AreOptionsLeft(c[i])
-			ec.prefFailCount++
-			jumpTo := -1
+// 			return -1
+// 		}
 
-			vd := ec.domainValues.getEffectiveDomainValues(38)
-			stop2(vd.values)
-			return jumpTo
-		}
-		/*
-			if ec.prefThreashold > 0 && p.unsatisfiedPrefsCount > ec.prefThreashold {
-				p.prefInactive = true
-				fmt.Printf("Disable prefs for %s", p.name)
-			}
-		*/
+// 	}
 
-	}
+// 	return 0
+// }
 
-	return 0
-}
-
-func prefStatus(p *Pupil, c []int, pupilIndex int) (bool, int, int) {
+//returns how many in the range of c  and how many satisfied
+func prefStatus(p *Pupil, c []int, pupilIndex int) (int, int, bool) {
 	k := len(c)
 	if pupilIndex >= k {
-		return true, 0, 0
+		return 0, 0, false
 	}
 
 	inRangeCount := 0
 	refCount := 0
+	isLastPerfFound := false
 	for j := len(p.prefs) - 1; j >= 0; j-- {
 		if p.prefs[j] < k {
 			inRangeCount++
 			if c[p.prefs[j]] == c[pupilIndex] {
 				refCount++
-				break
+				if p.prefs[j] == p.origOrderPrefs[len(p.prefs)-1] {
+					isLastPerfFound = true
+				}
+				//break
 			}
 		} else {
+			//prefs are sorted highest index first...
 			break
 		}
 	}
-	satisfied := true
 
-	if len(p.prefs) > 0 && inRangeCount == len(p.prefs) && refCount == 0 {
-		satisfied = false
-	}
-	return satisfied, inRangeCount, refCount
+	return inRangeCount, refCount, isLastPerfFound
 }
 
 func first(ec *ExecutionContext, c []int) []int {
@@ -235,12 +225,13 @@ func fcSeperateGroups(ec *ExecutionContext, c []int, pupilIndex int, originalPup
 			g := ec.Constraints[i]
 			if !g.disabled {
 				boysLeft, girlsLeft := g.calculateMembersCounts(ec, PartialAssignment(c))
-				maxAllowed := g.maxAllowed
-				minAllowed := g.minAllowed
-
-				if k == 68 && i == 15 {
-					stop()
+				graceFactor := float64(ec.graceLevel) / 10
+				if len(g.members) < 3 || g.ID() == ec.allGroup.ID() {
+					graceFactor = 0
 				}
+				maxAllowed := g.maxAllowed * (1 + graceFactor)
+				minAllowed := g.minAllowed * (1 - graceFactor)
+				allowZero := g.allowZero
 
 				for j := 0; j < ec.groupsCount; j++ {
 					if float64(g.countForGroup[j]) == math.Ceil(maxAllowed) {
@@ -250,11 +241,13 @@ func fcSeperateGroups(ec *ExecutionContext, c []int, pupilIndex int, originalPup
 							return false
 						}
 					}
+					if !allowZero || g.countForGroup[j] > 0 {
+						if math.Floor(minAllowed)-float64(boysLeft+girlsLeft)-float64(g.countForGroup[j]) == 0 {
 
-					if math.Floor(minAllowed)-float64(boysLeft+girlsLeft)-float64(g.countForGroup[j]) == 0 {
-						domainNotEmpty, _ := ec.domainValues.pushGroupRestriction(ec, i, originalPupilIndex, k, j, true, 0)
-						if !domainNotEmpty {
-							return false
+							domainNotEmpty, _ := ec.domainValues.pushGroupRestriction(ec, i, originalPupilIndex, k, j, true, 0)
+							if !domainNotEmpty {
+								return false
+							}
 						}
 					}
 
@@ -292,8 +285,10 @@ func fcGenderMinCheck(ec *ExecutionContext, c []int, gInx int, originalPupilInde
 	return true
 }
 
+// forward check and change the domain values of remaining unassigned pupils
 func fc(ec *ExecutionContext, c []int, pupilIndex int, originalPupilIndex int) bool {
 	if pupilIndex < len(c)-1 {
+		//meas we ended up on index that is already assigned
 		return true
 	}
 	domainNotEmpty := fcUniteGroups(ec, c, pupilIndex, originalPupilIndex)
@@ -353,6 +348,31 @@ func fcUniteGroups(ec *ExecutionContext, c []int, pupilIndex, originalPupilIndex
 	return true
 }
 
+func validateNoLastPerf(ec *ExecutionContext, c []int) bool {
+	if c == nil {
+		return false
+	}
+	pupilIndex := len(c) - 1
+	inRangePrefCount, foundPrefCount, isFoundLastPerf := prefStatus(ec.pupils[pupilIndex], c, pupilIndex)
+	enforceNoLastOnly := true //rand.Intn(len(ec.pupils)) > ec.graceLevel*3
+
+	if inRangePrefCount == NUM_OF_PREF && foundPrefCount == 1 && enforceNoLastOnly && isFoundLastPerf {
+		return false
+	}
+
+	//check all those that this student is their perf and may have only last:
+	for _, inPerf := range ec.pupils[pupilIndex].incomingPrefs {
+		inRangePrefCount, foundPrefCount, isFoundLastPerf := prefStatus(ec.pupils[inPerf], c, inPerf)
+		enforceNoLastOnly = rand.Intn(len(ec.pupils)) > ec.graceLevel+1
+
+		if inRangePrefCount == NUM_OF_PREF && foundPrefCount == 1 && enforceNoLastOnly && isFoundLastPerf {
+			return false
+		}
+	}
+
+	return true
+}
+
 func fcPref(ec *ExecutionContext, c []int, pupilIndex int, originalPupilIndex int) bool {
 	if pupilIndex < len(c)-1 {
 		return true
@@ -362,11 +382,15 @@ func fcPref(ec *ExecutionContext, c []int, pupilIndex int, originalPupilIndex in
 	if multiple {
 		return true
 	}
+
 	prefCount := len(ec.pupils[pupilIndex].prefs)
+	inRangePrefCount, foundPrefCount, _ := prefStatus(ec.pupils[pupilIndex], c, pupilIndex)
 
-	_, inRangePrefCount, foundPrefCount := prefStatus(ec.pupils[pupilIndex], c, pupilIndex)
+	//only the third
+	//enforceNoLastOnly && prefCount == 3 && foundPrefCount == 1 && isFoundLastPerf) &&
 
-	if prefCount > 0 && foundPrefCount == 0 &&
+	if prefCount > 0 &&
+		foundPrefCount == 0 &&
 		prefCount-inRangePrefCount == 1 {
 		domainNotEmpty, changed := ec.domainValues.PushDomainOnlyOneRestriction(originalPupilIndex, ec.pupils[pupilIndex].prefs[0], value)
 		if !domainNotEmpty {
@@ -387,8 +411,8 @@ func fcPref(ec *ExecutionContext, c []int, pupilIndex int, originalPupilIndex in
 
 		if inPerf > pupilIndex && ec.pupils[inPerf].prefs[0] == pupilIndex &&
 			pupilIndex < len(c) {
-			//some pupil has this pupil has the highest index perf
-			//collect all this pupils prefs assignments:
+			//some pupil has this pupil as the highest index perf
+			//collect all this pupil's prefs assignments:
 			allowedValues := []int{}
 			for _, pref := range ec.pupils[inPerf].prefs {
 				allowedValues = append(allowedValues, c[pref])
@@ -414,7 +438,7 @@ func fcPref(ec *ExecutionContext, c []int, pupilIndex int, originalPupilIndex in
 			//if it is one before last, restrict the last!
 			prefCount := len(ec.pupils[inPerf].prefs)
 
-			_, inRangePrefCount, foundPrefCount = prefStatus(ec.pupils[inPerf], c, inPerf)
+			inRangePrefCount, foundPrefCount, _ = prefStatus(ec.pupils[inPerf], c, inPerf)
 			if prefCount > 0 && foundPrefCount == 0 &&
 				prefCount-inRangePrefCount == 1 {
 				value, multiple := fcValues(ec, c, inPerf)
@@ -465,10 +489,10 @@ func getPreferencesScore(ec *ExecutionContext, candidate Candidate) (int, int, i
 	for i := 0; i < k; i++ {
 		p := ec.pupils[i]
 		g := candidate.GetGroup(i)
-		for j := 0; j < len(p.prefs); j++ {
-			if p.prefs[j] < k {
+		for j := 0; j < len(p.origOrderPrefs); j++ {
+			if p.origOrderPrefs[j] < k {
 				total++
-				if g == candidate.GetGroup(p.prefs[j]) {
+				if g == candidate.GetGroup(p.origOrderPrefs[j]) {
 					totalSatisfiedSum++
 					if j == 0 {
 						firstSatisfiedSum++

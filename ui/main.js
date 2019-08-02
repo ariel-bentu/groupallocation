@@ -220,6 +220,26 @@ function loadTasks() {
     });
 }
 
+function loadAvailableResults() {
+    $.get("/api/available-results" , function(json) {
+        
+        emptyList("results")
+        $.each(JSON.parse(json), function(i, value) {
+            $('#results').append($('<option>').text(value.runDate + value.title).attr('value', value.id));
+        });
+            
+        selectFirst("results")
+    })
+    .done(function() {
+        
+    })
+    .fail(function() {
+        showMessage('Fail in loading tasks');
+    })
+    .always(function() {
+    });
+}
+
 function saveGroupsPupils() {
     
     var sel = getSelectedOption("subgroups")

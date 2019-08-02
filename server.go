@@ -168,14 +168,12 @@ func main() {
 		var ec *ExecutionContext
 		var err string
 		if taskId == -1 {
-			//file := r.URL.Query().Get("file")
-			//ec, err = Initialize(file)
-			w.Write([]byte("Not implemented"))
+			w.Write([]byte("Missing task param"))
 			return
-		} else {
-			ec, err = Initialize2(user, taskId)
-			ec.InitialErr = err
 		}
+		ec, err = Initialize2(user, taskId)
+		ec.InitialErr = err
+
 		if ec == nil {
 			w.Write([]byte("<html><body>Execution aborted. </br>\n" + err + "</br></body></html>"))
 			return
@@ -186,7 +184,7 @@ func main() {
 
 			ec.timeLimit, _ = strconv.Atoi(limit)
 		} else {
-			ec.timeLimit = 20
+			ec.timeLimit = 60
 		}
 		go RunBackTrack(ec)
 		w.Write([]byte(`<html><body>Execution started.to check status, click <a href="/status?e=` + ec.ID() + `" >here</a></br>`))
@@ -237,6 +235,42 @@ func main() {
 		w.Write([]byte("</body></html>"))
 	})
 
+	m.Get("/results", func(w http.ResponseWriter, r *http.Request) {
+
+		id := getParamInt(r, "id")
+		if id < 0 {
+			w.Write([]byte("Bad or missing result 'id'"))
+			return
+		}
+		taskId := getParamInt(r, "task")
+		if taskId < 0 {
+			w.Write([]byte("Bad or missing task param"))
+			return
+		}
+
+		var ec *ExecutionContext
+
+		ec, _ = Initialize2(user, taskId)
+		ec.ReadResults(id)
+		ec.done = true
+		//todo decrypt names
+		w.Header().Add("content-type", "text/html;charset=utf-8")
+		w.Write([]byte("<html dir=\"rtl\">"))
+		res, _ := ec.GetStatusHtml()
+		w.Write([]byte(res))
+		w.Write([]byte("</html>"))
+	})
+
+	m.Delete("/api/delete-result", func(w http.ResponseWriter, r *http.Request) {
+		id := getParamInt(r, "id")
+		if id < 0 {
+			w.Write([]byte("Bad or missing result 'id'"))
+			return
+		}
+		deleteResult(id)
+		w.Write([]byte("מחיקה הושלמה"))
+	})
+
 	m.Get("/up", func(w http.ResponseWriter, r *http.Request) {
 
 		w.Write([]byte(`<html>
@@ -257,6 +291,15 @@ func main() {
                         <p><button type="submit" >שלח</button>
                     </form>
                 </html>`))
+	})
+
+	m.Get("/api/available-results", func(w http.ResponseWriter, r *http.Request) {
+		//taskId := getParamInt(r, "task")
+
+		json, err := getResultsList()
+		if err == nil {
+			w.Write(json)
+		}
 	})
 
 	m.Get("/pref-graph", func(w http.ResponseWriter, r *http.Request) {
@@ -367,6 +410,60 @@ func main() {
 			AllowCredentials: true,
 		}))
 	*/
+
+	m.Get("/upload-result", func(w http.ResponseWriter, r *http.Request) {
+
+		w.Write([]byte(`<html>
+					<script src="util.js"></script>
+					<script src="forge.min.js"></script>
+					<script>
+						function makeKey(){
+							var passcodeInput = document.getElementsByName("passcode")[0];
+							if (passcodeInput.value != "") {
+								passcodeInput.value = btoa(getKey(passcodeInput.value))
+							}
+						}
+					</script>
+                    <form action="/api/upload-result" method="post" onSubmit="makeKey()" enctype="multipart/form-data">
+						<p><input type="file" name="file" value="upload excel file">
+						<p><input type="text" name="resultName" value="" placeholder="שם התוצאה">
+						<p><input type="text" name="taskId" value="" placeholder="task ID">
+						<p><input type="text" name="passcode" value="" placeholder="סיסמת הצפנה - אופציונלי">
+                        <p><button type="submit" >שלח</button>
+                    </form>
+                </html>`))
+	})
+	m.Post("/api/upload-result", func(w http.ResponseWriter, r *http.Request) {
+
+		file, header, err := r.FormFile("file")
+		resultName := r.FormValue("resultName")
+		taskId := r.FormValue("taskId")
+		defer file.Close()
+
+		if err != nil {
+			fmt.Fprintln(w, err)
+			return
+		}
+		path := "/tmp/" + header.Filename
+		out, err := os.Create(path)
+		if err != nil {
+			fmt.Fprintf(w, "Failed to open the file for writing")
+			return
+		}
+		defer out.Close()
+		_, err = io.Copy(out, file)
+		if err != nil {
+			fmt.Fprintln(w, err)
+		}
+
+		uploadResultExcel(user, taskId, path, resultName)
+
+		os.Remove(path)
+
+		// the header contains useful info, like the original file name
+		fmt.Fprintf(w, "Result file %s uploaded successfully.", header.Filename)
+	})
+
 	m.Use(martini.Static("ui/"))
 
 	m.Run()

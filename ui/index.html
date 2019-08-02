@@ -1,259 +1,304 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <link rel="stylesheet" type="text/css" href="style.css">
 
-<script src="jquery.min.js"></script>
+    <script src="jquery.min.js"></script>
 
-<script src="util.js"></script>
-<script src="main.js"></script>
-<script src="forge.min.js"></script>
-<script>
-    var taskID=-1
-    var file = "file.xlsx"
-$(document).ready(function(){
-    /*
-    readableKey="arielABC";
-    var salt = forge.random.getBytesSync(8);
-    var keySize = 16;
-    var ivSize = 8;
-    //'0123456789123456';//
-    var derivedBytes = forge.pbe.opensslDeriveBytes(readableKey, null, 16);
-
-    
-    var request = new XMLHttpRequest();
-    var url = "/test/encrypt?passcode="+encodeURIComponent(btoa(derivedBytes));
-    request.open("GET", url, true);
-    //request.responseType = "arraybuffer";
-    request.onload = function () {
-        var rt = request.response;
-        console.log(rt);
-        var decipher = forge.cipher.createDecipher('AES-CFB', forge.util.createBuffer(derivedBytes));
-        decipher.start({iv: forge.util.createBuffer('')});
-        decipher.update(forge.util.createBuffer(atob(rt)));
-        decipher.finish();
-        decipher.output.getBytes(16);
-
-        console.log(decipher.output);
-        console.log(decipher.output.toString());
-        console.log('--------------');
-    };
-
-    request.send();
-*/
-    $("#decrypt").click(function () {loadPupils(); loadGroups();});
-    $("#search").keyup(function() {searchInList("pupils", $("#search").val())});
-    $("#searchPref1").keyup(function(){searchInList("pupilsInPref1", $("#searchPref1").val())});
-    $("#searchPref2").keyup(function(){searchInList("pupilsInPref2", $("#searchPref2").val())});
-
-    $("#pupils").dblclick(function() {addPupil("pupils", "groupsPupils", "btnSaveGroupPupil")});
-    $("#btnAdd").click(function() {addPupil("pupils", "groupsPupils", "btnSaveGroupPupil")});
-    $("#btnRemove").click(function () {removePupil("groupsPupils","btnSaveGroupPupil")});
-    $("#groupsPupils").dblclick(function () {removePupil("groupsPupils","btnSaveGroupPupil")});
-
-    $("#pupilsInPref1").click(loadPupilPrefs)
-
-    $("#pupilsInPref2").dblclick(function() {addPupil("pupilsInPref2", "pupilsPrefs", "btnSavePrefs")});
-    $("#btnAddPref").click(function() {addPupil("pupilsInPref2", "pupilsPrefs","btnSavePupilPref")});
-    $("#btnRemovePref").click(function () {removePupil("pupilsPrefs","btnSavePrefs")});
-    $("#pupilsPrefs").dblclick(function () {removePupil( "pupilsPrefs","btnSavePrefs")});
-
-    $("#btnSavePrefs").click(savePupilPrefs);
-
-    $("#newSubgroup").click(function() {
-        $("#newSubgroupModal").show();
-    });
-    
-    $("#btnCloseNewSubgroupModel").click(function () {
-        $("#newSubgroupModal").hide();
-    })
-
-    $("#subgroups").change(loadSubgroupPupils);
-    $("#btnSaveGroupPupil").click(saveGroupsPupils)
-    $("#tasks").change(function () {
-        var sel = getSelectedOption("tasks");
-        if (sel != undefined) {
-            taskID = sel.val()
-            loadPupils();
-            loadGroups();
+    <script src="util.js"></script>
+    <script src="main.js"></script>
+    <script src="forge.min.js"></script>
+    <script>
+        var taskID = -1
+        var file = "file.xlsx"
+        $(document).ready(function () {
+            /*
+            readableKey="arielABC";
+            var salt = forge.random.getBytesSync(8);
+            var keySize = 16;
+            var ivSize = 8;
+            //'0123456789123456';//
+            var derivedBytes = forge.pbe.opensslDeriveBytes(readableKey, null, 16);
+        
             
-        } 
-    })
+            var request = new XMLHttpRequest();
+            var url = "/test/encrypt?passcode="+encodeURIComponent(btoa(derivedBytes));
+            request.open("GET", url, true);
+            //request.responseType = "arraybuffer";
+            request.onload = function () {
+                var rt = request.response;
+                console.log(rt);
+                var decipher = forge.cipher.createDecipher('AES-CFB', forge.util.createBuffer(derivedBytes));
+                decipher.start({iv: forge.util.createBuffer('')});
+                decipher.update(forge.util.createBuffer(atob(rt)));
+                decipher.finish();
+                decipher.output.getBytes(16);
+        
+                console.log(decipher.output);
+                console.log(decipher.output.toString());
+                console.log('--------------');
+            };
+        
+            request.send();
+        */
+            $("#decrypt").click(function () { loadPupils(); loadGroups(); });
+            $("#search").keyup(function () { searchInList("pupils", $("#search").val()) });
+            $("#searchPref1").keyup(function () { searchInList("pupilsInPref1", $("#searchPref1").val()) });
+            $("#searchPref2").keyup(function () { searchInList("pupilsInPref2", $("#searchPref2").val()) });
 
-    $("#isUnite").change(setDirty("groupSave"));
-    $("#isSpreadEvenly").change(setDirty("groupSave"));
-    $("#isGenderSensitive").change(setDirty("groupSave"));
-    $("#isInactive").change(setDirty("groupSave"));
-    $("#groupSave").click(saveGroup);
-    $("#btnDeleteTask").click(deleteTask)
+            $("#pupils").dblclick(function () { addPupil("pupils", "groupsPupils", "btnSaveGroupPupil") });
+            $("#btnAdd").click(function () { addPupil("pupils", "groupsPupils", "btnSaveGroupPupil") });
+            $("#btnRemove").click(function () { removePupil("groupsPupils", "btnSaveGroupPupil") });
+            $("#groupsPupils").dblclick(function () { removePupil("groupsPupils", "btnSaveGroupPupil") });
 
-    $("#btnRun").click(function() {
-        window.open("/run?task=" + taskID);
-    })
+            $("#pupilsInPref1").click(loadPupilPrefs)
 
-    $("#btnSaveNewSubgroup").click(saveNewGroup);
-    //window.onclick = function(event) {
-    //    if (event.target.class == "modal") {
-    //        event.target.style.display = "none";
-    //    }
-    //};
-    loadTasks()
-});
+            $("#pupilsInPref2").dblclick(function () { addPupil("pupilsInPref2", "pupilsPrefs", "btnSavePrefs") });
+            $("#btnAddPref").click(function () { addPupil("pupilsInPref2", "pupilsPrefs", "btnSavePupilPref") });
+            $("#btnRemovePref").click(function () { removePupil("pupilsPrefs", "btnSavePrefs") });
+            $("#pupilsPrefs").dblclick(function () { removePupil("pupilsPrefs", "btnSavePrefs") });
+
+            $("#btnSavePrefs").click(savePupilPrefs);
+
+            $("#newSubgroup").click(function () {
+                $("#newSubgroupModal").show();
+            });
+
+            $("#btnCloseNewSubgroupModel").click(function () {
+                $("#newSubgroupModal").hide();
+            })
+
+            $("#subgroups").change(loadSubgroupPupils);
+            $("#btnSaveGroupPupil").click(saveGroupsPupils)
+            $("#tasks").change(function () {
+                var sel = getSelectedOption("tasks");
+                if (sel != undefined) {
+                    taskID = sel.val()
+                    loadPupils();
+                    loadGroups();
+                    loadAvailableResults();
+                }
+            })
+
+            $("#isUnite").change(setDirty("groupSave"));
+            $("#isSpreadEvenly").change(setDirty("groupSave"));
+            $("#isGenderSensitive").change(setDirty("groupSave"));
+            $("#isInactive").change(setDirty("groupSave"));
+            $("#groupSave").click(saveGroup);
+            $("#btnDeleteTask").click(deleteTask)
+            $("#btnShowResult").click(function () {
+                var sel = getSelectedOption("results");
+                if (sel != undefined) {
+                    let resultID = sel.val();
+                    window.open("/results?task=" + taskID + "&id=" + resultID);
+                }
+            })
+            $("#btnDeleteResult").click(function () {
+                var sel = getSelectedOption("results");
+                if (sel != undefined) {
+                    if (window.confirm("האם למחוק תוצאה? ")) {
+                        $.ajax({
+                            url: "/api/delete-result?id=" + sel.val(),
+                            type: 'DELETE',
+                            success: function (result) {
+                                showMessage("תוצאה נמחקה")
+                            }
+                        });
+                    }
+                }
+
+            })
+
+
+            $("#btnRun").click(function () {
+                let limit = $("#runLimit").val()
+                window.open("/run?task=" + taskID + "&limit=" + limit);
+
+            })
+
+            $("#btnSaveNewSubgroup").click(saveNewGroup);
+            //window.onclick = function(event) {
+            //    if (event.target.class == "modal") {
+            //        event.target.style.display = "none";
+            //    }
+            //};
+            loadTasks()
+        });
 
 
 
 
-</script>
+    </script>
 </head>
+
 <body>
 
-<div id="newSubgroupModal" class="modal">
-  <!-- Modal content -->
-  <div class="modal-content" dir="rtl">
-    <span id="btnCloseNewSubgroupModel" class="close">&times;</span>
-    <p align="center">הוספת קבוצה</p><br/>
-    <form id="addSubgroup">
-    <table style="width: 100%">
-        <tr>
-            <td style="width: 30%">שם</td>
-            <td style="width: 70%"><input style="width:100%" type="text" id="mdlGroupName"/>
-        </tr>
-    </table>
-    <br/><br/>
-    <input type="button" id="btnSaveNewSubgroup" value="Save" />
-    </form>
-  </div>
+    <div id="newSubgroupModal" class="modal">
+        <!-- Modal content -->
+        <div class="modal-content" dir="rtl">
+            <span id="btnCloseNewSubgroupModel" class="close">&times;</span>
+            <p align="center">הוספת קבוצה</p><br />
+            <form id="addSubgroup">
+                <table style="width: 100%">
+                    <tr>
+                        <td style="width: 30%">שם</td>
+                        <td style="width: 70%"><input style="width:100%" type="text" id="mdlGroupName" />
+                    </tr>
+                </table>
+                <br /><br />
+                <input type="button" id="btnSaveNewSubgroup" value="Save" />
+            </form>
+        </div>
 
-</div>
- 
-<div dir="rtl">
-<input type="text" id="pwd" value=""><input type="button" id="decrypt" value="פענח" />
-<h2 align="center">שיבוצים</h2>
-<table style="width:80% ;text-align: right">
-<tr>
-    <td style="width: 15%">שם השיבוץ</td>
-    <td style="width: 60%">
-        <select id="tasks"  style="width: 100%">
-            <option></option>
-        </select>    
-    
-    <td>
-        <input type="button" id="btnDeleteTask" value="מחק שיבוץ" />
-        <input type="button" id="btnRun" value="הרץ" />
+    </div>
 
-    </td>
-</tr>
-</table>
+    <div dir="rtl">
+        <input type="text" id="pwd" value=""><input type="button" id="decrypt" value="פענח" />
+        <h2 align="center">שיבוצים</h2>
+        <table style="width:80% ;text-align: right">
+            <tr>
+                <td style="width: 15%">שם השיבוץ</td>
+                <td style="width: 60%">
+                    <select id="tasks" style="width: 100%">
+                        <option></option>
+                    </select>
 
-<h2 align="center">העדפות תלמידים</h2>
+                <td>
+                    <input type="button" id="btnDeleteTask" value="מחק שיבוץ" />
+                    <input type="button" id="btnRun" value="הרץ" />
+                    limit
+                    <input type="input" id="runLimit" value="20" />
 
-<table style="width:100% ;text-align: center">
-<tr>
-    <td style="width: 40%">
-        <input type="text" id="searchPref1" placeholder="הקלדי שם לחיפוש" style="height: 15px; width: 90%; margin:4px"></text><br/>
-        <select id="pupilsInPref1" size="10" style="width: 90%">
-            <optgroup label = "בחר תלמיד כדי לראות/לקבוע העדפותיו">
-    
-        </select>
-    </td>    
-    <td style="width: 25%">
-        <input type="text" id="searchPref2" placeholder="הקלדי שם לחיפוש" style="height: 15px; width: 90%; margin:4px"></text><br/>
-        <select id="pupilsInPref2" size="10" style="width: 100%">
-            <optgroup label = "תלמידים">
-    
-        </select>
-    </td>
-    <td style="width: 5%; " valign="top"> 
-        <br/><br/><br/>
-        <button id="btnAddPref">&gt;&gt;</button>
-        <br/>
-        <button id="btnRemovePref">&lt;&lt;</button>
+                </td>
+                <td>
+                    <select id="results" style="width: 100%">
+                        <option></option>
+                    </select>
+                    <input type="button" id="btnShowResult" value="הצג תוצאה" />
+                    <input type="button" id="btnDeleteResult" value="מחק תוצאה" />
 
-    </td>
+                </td>
+            </tr>
+        </table>
 
-    <td style="width: 25%" valign="top">
-        <br/><br/>
-        <select id="pupilsPrefs" size="5" style="width: 100%">
-            <optgroup label = "העדפות לפי סדר">
-        </select>
-    </td>
-</tr>
-<tr>
-    <td><input type="button" id="btnSavePrefs" value="שמור העדפות תלמיד" disabled/></td>
-</tr>
-</table>
+        <h2 align="center">העדפות תלמידים</h2>
 
+        <table style="width:100% ;text-align: center">
+            <tr>
+                <td style="width: 40%">
+                    <input type="text" id="searchPref1" placeholder="הקלדי שם לחיפוש"
+                        style="height: 15px; width: 90%; margin:4px"></text><br />
+                    <select id="pupilsInPref1" size="10" style="width: 90%">
+                        <optgroup label="בחר תלמיד כדי לראות/לקבוע העדפותיו">
 
-<h2 align="center">קבוצה</h2>
+                    </select>
+                </td>
+                <td style="width: 25%">
+                    <input type="text" id="searchPref2" placeholder="הקלדי שם לחיפוש"
+                        style="height: 15px; width: 90%; margin:4px"></text><br />
+                    <select id="pupilsInPref2" size="10" style="width: 100%">
+                        <optgroup label="תלמידים">
 
+                    </select>
+                </td>
+                <td style="width: 5%; " valign="top">
+                    <br /><br /><br />
+                    <button id="btnAddPref">&gt;&gt;</button>
+                    <br />
+                    <button id="btnRemovePref">&lt;&lt;</button>
 
-<table style="width:80% ;text-align: right">
-<tr>
-    <td style="width: 10%">קבוצה</td>
-    <td style="width: 80%">
-        <select id="subgroups"  style="width: 100%">
-            <option></option>
-        </select>    
-        
-    </td>
-    <td>
-        <input type="button" id="newSubgroup" value="קבוצה חדשה..." />
-    </td>
-</tr>
-<tr>
-    <td/>
-    <td>
-        <input type="checkbox" id="isUnite">קבוצת איחוד</input><br/>
-        <input type="checkbox" id="isSpreadEvenly">פיזור מלא</input><br/>
-        <input type="checkbox" id="isGenderSensitive">רגיש למגדר </input><br/>
-        <input type="checkbox" id="isInactive">כבוי זמנית</input>
-    </td>
-    <td/>
-</tr>
-<tr><td><input type="button" id="groupSave" value="שמור קבוצה" disabled/></td></tr>
-<tr><td></td></tr>
-</table>
-<h2 align="center">שיבוץ תלמידים לקבוצה</h2>
+                </td>
 
-<table style="width:80% ;text-align: center">
-<tr>
-    <td style="width: 10%"/>    
-    <td style="width: 30%">
-        <input type="text" id="search" placeholder="הקלדי שם לחיפוש" style="height: 15px; width: 90%; margin:4px"></text><br/>
-        <select id="pupils" size="10" style="width: 100%">
-            <optgroup label = "תלמידים">
-    
-        </select>
-    </td>
-    <td style="width: 20%; "> 
-        <br/>
-        <button id="btnAdd">&gt;&gt;</button>
-        <br/>
-        <button id="btnRemove">&lt;&lt;</button>
-
-    </td>
-
-    <td style="width: 30%">
-        <br/><br/>
-        <select id="groupsPupils" size="10" style="width: 100%">
-            <optgroup label = "חברי קבוצה">
-        </select>
-    </td>
-</tr>
-</table>
-<div id="message"></div>
-<table> 
-    <tr>
-        <td><input type="button" id="btnSaveGroupPupil" value="שמור חברי קבוצה" disabled/></td>
-        <td></td>
-    </tr>
-</table>
+                <td style="width: 25%" valign="top">
+                    <br /><br />
+                    <select id="pupilsPrefs" size="5" style="width: 100%">
+                        <optgroup label="העדפות לפי סדר">
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="button" id="btnSavePrefs" value="שמור העדפות תלמיד" disabled /></td>
+            </tr>
+        </table>
 
 
-</div>
+        <h2 align="center">קבוצה</h2>
+
+
+        <table style="width:80% ;text-align: right">
+            <tr>
+                <td style="width: 10%">קבוצה</td>
+                <td style="width: 80%">
+                    <select id="subgroups" style="width: 100%">
+                        <option></option>
+                    </select>
+
+                </td>
+                <td>
+                    <input type="button" id="newSubgroup" value="קבוצה חדשה..." />
+                </td>
+            </tr>
+            <tr>
+                <td />
+                <td>
+                    <input type="checkbox" id="isUnite">קבוצת איחוד</input><br />
+                    <input type="checkbox" id="isSpreadEvenly">פיזור מלא</input><br />
+                    <input type="checkbox" id="isGenderSensitive">רגיש למגדר </input><br />
+                    <input type="checkbox" id="isInactive">כבוי זמנית</input>
+                </td>
+                <td />
+            </tr>
+            <tr>
+                <td><input type="button" id="groupSave" value="שמור קבוצה" disabled /></td>
+            </tr>
+            <tr>
+                <td></td>
+            </tr>
+        </table>
+        <h2 align="center">שיבוץ תלמידים לקבוצה</h2>
+
+        <table style="width:80% ;text-align: center">
+            <tr>
+                <td style="width: 10%" />
+                <td style="width: 30%">
+                    <input type="text" id="search" placeholder="הקלדי שם לחיפוש"
+                        style="height: 15px; width: 90%; margin:4px"></text><br />
+                    <select id="pupils" size="10" style="width: 100%">
+                        <optgroup label="תלמידים">
+
+                    </select>
+                </td>
+                <td style="width: 20%; ">
+                    <br />
+                    <button id="btnAdd">&gt;&gt;</button>
+                    <br />
+                    <button id="btnRemove">&lt;&lt;</button>
+
+                </td>
+
+                <td style="width: 30%">
+                    <br /><br />
+                    <select id="groupsPupils" size="10" style="width: 100%">
+                        <optgroup label="חברי קבוצה">
+                    </select>
+                </td>
+            </tr>
+        </table>
+        <div id="message"></div>
+        <table>
+            <tr>
+                <td><input type="button" id="btnSaveGroupPupil" value="שמור חברי קבוצה" disabled /></td>
+                <td></td>
+            </tr>
+        </table>
+
+
+    </div>
 
 
 
 
 </body>
+
 </html>

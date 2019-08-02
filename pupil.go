@@ -5,6 +5,7 @@ type Pupil struct {
 	name                   string
 	isMale                 bool
 	prefs                  []int
+	origOrderPrefs         []int
 	incomingPrefs          []int
 	groupBestScore         int
 	numOfMoves             int32

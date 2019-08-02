@@ -18,6 +18,7 @@ type SubGroupConstraint struct {
 	originalCount   int
 	maxAllowed      float64
 	minAllowed      float64
+	allowZero       bool
 	genderSensitive bool
 	speadToAll      bool
 
@@ -50,13 +51,20 @@ func NewSubGroupConstraint(id int, desc string, isUnite bool, weight int, groups
 func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext, err *stringBuffer) {
 	if !c.IsUnite {
 		howManyGroupsToSpread := float64(ec.groupsCount)
-		c.minAllowed = 0
+		c.minAllowed = 3
+
+		c.allowZero = true
 		if !c.speadToAll {
-			howManyGroupsToSpread = 2
+			howManyGroupsToSpread = float64(ec.groupsCount - 1)
+			if len(c.members)/ec.groupsCount >= 3 {
+				c.minAllowed = 4
+			}
+
 		}
 		c.maxAllowed = float64(len(c.members)) / howManyGroupsToSpread
 		if c.speadToAll {
 			c.minAllowed = c.maxAllowed - 1
+			c.allowZero = false
 		}
 
 		//c.stillAllowOneToBeOneTooMany = c.maxAllowed > math.Floor(c.maxAllowed)
@@ -246,7 +254,7 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 		return true
 	}
 	k := candidate.Count()
-	maxAllowed := 34.0 //todo from config
+	maxAllowed := 25.0 //todo from config
 	if c == ec.allGroup {
 
 	} else {
@@ -309,8 +317,10 @@ func (c *SubGroupConstraint) ValidateNew(ec *ExecutionContext, candidate Candida
 		//}
 
 		//if diff > 0 && float64(left) < math.Floor(diff) { // diff - 0.5 {
-		if math.Floor(minAllowed)-float64(boysLeft+girlsLeft)-float64(c.countForGroup[i]) > 0 {
-			return false
+		if !c.allowZero || c.countForGroup[i] > 0 {
+			if math.Floor(minAllowed)-float64(boysLeft+girlsLeft)-float64(c.countForGroup[i]) == 0 {
+				return false
+			}
 		}
 
 		if (c.boysForGroup[i] > 0 || c.disallowZeroBoys) && c.boysForGroup[i]+boysLeft < c.minBoys {

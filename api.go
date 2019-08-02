@@ -45,6 +45,12 @@ type IdRefIDJson struct {
 	RefId string `json:"refId"`
 }
 
+type IdTitleDateJson struct {
+	Id      string `json:"id"`
+	RunDate int64  `json:"runDate"`
+	Title   string `json:"title"`
+}
+
 func getPupilList(file string) ([]byte, error) {
 	var pupils []IdNameJson
 
@@ -306,6 +312,66 @@ func uploadExcel(user *User, path string, taskName string, passcode string) {
 
 }
 
+func uploadResultExcel(user *User, taskId, path, resultName string) error {
+	connect()
+	r := db.QueryRow("select max(resultId) from taskResult")
+	maxId := 1
+	if r != nil {
+		r.Scan(&maxId)
+	}
+	resultID := maxId + 1
+	taskIdInt, _ := strconv.Atoi(taskId)
+
+	dataExcel, err := xlsx.OpenFile(path)
+	if err != nil {
+		return err
+	}
+
+	ec, _ := Initialize2(user, taskIdInt)
+
+	tx, err := db.Begin()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, sheet := range dataExcel.Sheets {
+		if strings.Index(sheet.Name, "נתונים") >= 0 {
+			tx.Exec("Insert into taskResult (duration, foundCount, resultId, runDate, task, tenant, title) values (0,0,?, ?, ?, '',?)",
+				resultID, time.Now().Unix(),
+				taskIdInt, resultName+"_"+sheet.Name)
+			fmt.Printf("Import result name: %s\n", resultName+"_"+sheet.Name)
+			for i := 6; i <= 100; i++ {
+				name := sheet.Cell(i, 1).String()
+				if name == "" {
+					break
+				}
+				if name == "יקטרינה שפירא" {
+					name = "יקטרינה (קטיה) שפירא"
+				}
+				if name == "מריה שפירא" {
+					name = "מריה (מאשה) שפירא"
+				}
+
+				nameId := findPupilId(ec.pupils, name)
+				group, _ := sheet.Cell(i, 0).Int()
+				if nameId == -1 {
+					fmt.Printf("Can't find name: %s\n", name)
+				} else {
+					fmt.Printf("Import name: %s, group: %d\n", name, group)
+
+					tx.Exec("Insert into taskResultLines (groupId, pupilId,resultId) values (?,?,?)",
+						group-1, nameId, resultID)
+				}
+			}
+
+		}
+		resultID++
+	}
+	tx.Commit()
+
+	return nil
+}
+
 func findPupilId(pupils []*Pupil, name string) int {
 	for _, p := range pupils {
 		if p.name == name {
@@ -558,4 +624,35 @@ func setSubGroupPupils2(user *User, taskId int, groupId int, decoder *json.Decod
 	stmt.Close()
 	tx.Commit()
 	return nil
+}
+
+func getResultsList() ([]byte, error) {
+	connect()
+	res, err := db.Query("select resultId, runDate, title from taskResult order by runDate desc")
+	if err != nil {
+		panic(err)
+	}
+	runResults := []IdTitleDateJson{}
+	for res.Next() {
+		var id int
+		var date int64
+		var title string
+		err = res.Scan(&id, &date, &title)
+		newP := IdTitleDateJson{Id: fmt.Sprintf("%d", id), RunDate: date, Title: title}
+		runResults = append(runResults, newP)
+	}
+	return json.Marshal(runResults)
+}
+
+func deleteResult(id int) {
+	connect()
+	tx, err := db.Begin()
+	if err != nil {
+		panic(err)
+	}
+	tx.Exec("delete from taskResult where resultId=?", id)
+	tx.Exec("delete from taskResultLines where resultId=?", id)
+
+	tx.Commit()
+
 }

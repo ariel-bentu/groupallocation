@@ -45,6 +45,7 @@ type ExecutionContext struct {
 	endTime   time.Time
 	done      bool
 	result    string
+	resultID  int
 	Cancel    bool
 
 	groupsCount    int
@@ -61,9 +62,10 @@ type ExecutionContext struct {
 
 	timeLimit int //in seconds
 
-	MaxDepth          int
-	currentLevelCount int
-	graceLevel        int
+	MaxDepth           int
+	currentLevelCount  int
+	graceLevel         int
+	allowOnlyLastCount int
 
 	currentIteration             int
 	prefFailCount                int
@@ -73,6 +75,7 @@ type ExecutionContext struct {
 	bestSumOfSatisfiedFirstPrefs int
 	bestCandidate                []int
 	resultsCount                 int
+	numOfUpgrades                int
 	resultsScoreHistory          []int
 	InitialErr                   string
 }
@@ -85,6 +88,7 @@ func NewExecutionContext() *ExecutionContext {
 	ec.done = false
 	ec.Cancel = false
 	ec.graceLevel = 0
+	ec.allowOnlyLastCount = 3 //todo from conf
 
 	t := time.Now().UnixNano()
 	ec.id = fmt.Sprintf("%d", t)
@@ -108,14 +112,14 @@ func (e *ExecutionContext) ID() string {
 
 func (e *ExecutionContext) GetStatusHtml() (string, string) {
 	if e.done {
-		return e.printHtml(), fmt.Sprintf("%f, #of found results: %d</br>%s", e.endTime.Sub(e.startTime).Seconds(), e.resultsCount, slice2String(e.resultsScoreHistory))
+		return e.printHtml(), fmt.Sprintf("%f,resultID: %d, #of found results: %d</br>%s", e.endTime.Sub(e.startTime).Seconds(), e.resultID, e.resultsCount, slice2String(e.resultsScoreHistory))
 	}
 	//return fmt.Sprintf("Interaction Count:%d, progress: %d", e.currentIteration), fmt.Sprintf("%f", time.Now().Sub(e.startTime).Seconds(),
 	//	e.currentIteration/e.iterationCount*100)
 
 	sb := NewStringBuffer()
-	sb.AppendFormat("Candidate Length:%d, Max: %d, elappsed: %f.0, iter: %s, graceLevel:%d, found results so far: %d<br>\n<div dir=\"ltr\">%s</div></br>\n", e.currentIteration, e.MaxDepth, time.Now().Sub(e.startTime).Seconds(),
-		FormatInt2String(e.currentLevelCount), e.graceLevel, e.resultsCount, slice2String(e.statusCandidate))
+	sb.AppendFormat("Candidate Length:%d, Max: %d, elappsed: %f.0, iter: %s, graceLevel:%d, results so far: %d, upgrades: %d<br>\n<div dir=\"ltr\">%s</div></br>\n", e.currentIteration, e.MaxDepth, time.Now().Sub(e.startTime).Seconds(),
+		FormatInt2String(e.currentLevelCount), e.graceLevel, e.resultsCount, e.numOfUpgrades, slice2String(e.statusCandidate))
 
 	for _, c := range e.Constraints {
 
@@ -179,7 +183,7 @@ func getGroupsHtml(e *ExecutionContext, p *Pupil) string {
 }
 func getPrefHtml(e *ExecutionContext, p *Pupil) string {
 	sb := NewStringBuffer()
-	for i, v := range p.prefs {
+	for i, v := range p.origOrderPrefs {
 		sb.AppendFormat("%d: %s (%d)<br/>", i+1, e.pupils[v].name, v)
 	}
 	return sb.ToString()
@@ -201,6 +205,37 @@ func (e *ExecutionContext) Finish() {
 		p.groupBestScore = e.bestCandidate[i]
 	}
 	e.endTime = time.Now()
+
+	connect()
+	r := db.QueryRow("select max(resultId) from taskResult")
+	maxId := 1
+	if r != nil {
+		r.Scan(&maxId)
+	}
+	e.resultID = maxId + 1
+
+	stmt, _ := db.Prepare("INSERT INTO taskResult (resultId, tenant, task, runDate, duration, foundCount) values (?,?,?,?,?,?)")
+	stmt.Exec(maxId, 0, e.taskId, e.endTime.Unix(), (e.endTime.Unix() - e.startTime.Unix()), e.resultsCount)
+
+	stmt, _ = db.Prepare("INSERT INTO taskResultLines (resultId, groupId, pupilId) values (?,?,?)")
+
+	for _, p := range e.pupils {
+		stmt.Exec(maxId, p.groupBestScore, p.id)
+	}
+}
+
+func (e *ExecutionContext) ReadResults(id int) {
+	connect()
+	result, err := db.Query("select pupilId, groupId from taskResultLines B inner join taskResult A on (A.resultId = B.resultId) where task = ? and A.resultId = ?", e.taskId, id)
+	if err != nil {
+		panic(err)
+	}
+	var pupilId, groupId int
+	for result.Next() {
+		result.Scan(&pupilId, &groupId)
+		pId := e.findPupilById(pupilId)
+		e.pupils[pId].groupBestScore = groupId
+	}
 }
 
 func IsEmpty(c *xlsx.Cell) bool {
@@ -650,6 +685,7 @@ func initializePreferences2(ec *ExecutionContext, user *User, taskId int) {
 
 	for _, p := range ec.pupils {
 		p.prefs = nil
+		p.origOrderPrefs = nil
 		p.incomingPrefs = nil
 	}
 
@@ -669,8 +705,12 @@ func initializePreferences2(ec *ExecutionContext, user *User, taskId int) {
 		pupilRefIndex := ec.findPupilById(refPupilId)
 		p := ec.pupils[pupilIndex]
 		p.prefs = append(p.prefs, pupilRefIndex)
+		p.origOrderPrefs = append(p.origOrderPrefs, pupilRefIndex)
+		if len(p.origOrderPrefs) > 3 {
+			doNoth()
+		}
 
-		//sort highest first
+		// //sort highest first - needed for the algorithm
 		for i := len(p.prefs) - 2; i >= 0; i-- {
 			if p.prefs[i+1] > p.prefs[i] {
 				temp := p.prefs[i+1]
@@ -690,6 +730,7 @@ func initializePreferences2(ec *ExecutionContext, user *User, taskId int) {
 	}
 
 }
+func doNoth() {}
 
 func InitializeGroupsMembers2(ec *ExecutionContext, user *User, taskId int) {
 
@@ -835,7 +876,20 @@ func (ec *ExecutionContext) printHtml() string {
 
 	//Print list of Pupils and their preferences
 	res.Append("<H2> מפת העדפות </H2></br>\n")
+	res.AppendFormat("<P>Sum of Matching Pref: %d, Sum of Matching Firsts: %d<P></br>\n", ec.bestSumOfSatisfiedPrefs, ec.bestSumOfSatisfiedFirstPrefs)
 	res.Append("<table><tr><th>#</th><th>שם</th><th>בחירה 1</th><th>בחירה 2</th><th>בחירה 3</th></tr>\n")
+
+	numOfAll := 0
+	numOfNone := 0
+	numOfOneLess := 0
+	numOfTwoLess := 0
+	numOfFirst := 0
+	numOfSecond := 0
+	numOfThird := 0
+	numOfFirstAndSecond := 0
+	numOfFirstAndThird := 0
+	numOfSecondAndThird := 0
+	numOfThree := 0
 
 	for inx, p := range ec.pupils {
 		colorName := getColor(p.groupBestScore)
@@ -843,11 +897,51 @@ func (ec *ExecutionContext) printHtml() string {
 		//name
 		res.Append(fmt.Sprintf("<tr><td>%d</td><td bgcolor=%s name=\"encryptedCell\">%s</td>", inx+1, colorName, p.name))
 		//preferences
+		numOfMatch := 0
+		got1 := false //len(p.origOrderPrefs) > 0 && p.groupBestScore == ec.pupils[p.origOrderPrefs[0]].groupBestScore
+		got2 := false //len(p.origOrderPrefs) > 1 && p.groupBestScore == ec.pupils[p.origOrderPrefs[1]].groupBestScore
+		got3 := false //len(p.origOrderPrefs) > 2 && p.groupBestScore == ec.pupils[p.origOrderPrefs[2]].groupBestScore
 
-		for i := 0; i < len(p.prefs); i++ {
-			refP := ec.pupils[p.prefs[i]]
+		for i := 0; i < len(p.origOrderPrefs); i++ {
+			refP := ec.pupils[p.origOrderPrefs[i]]
 			colorPref := getColor(refP.groupBestScore)
+			if colorName == colorPref {
+				numOfMatch++
+				if i == 0 {
+					got1 = true
+				} else if i == 1 {
+					got2 = true
+				} else if i == 2 {
+					got3 = true
+				}
+			}
 			res.Append(fmt.Sprintf("<td bgcolor=\"%s\" name=\"encryptedCell\">%s</td>", colorPref, refP.name))
+		}
+
+		if numOfMatch == len(p.prefs) {
+			numOfAll++
+		} else if numOfMatch+1 == len(p.prefs) {
+			numOfOneLess++
+		} else if numOfMatch+2 == len(p.prefs) {
+			numOfTwoLess++
+		}
+
+		if got1 && got2 && got3 {
+			numOfThree++
+		} else if got1 && !got2 && !got3 {
+			numOfFirst++
+		} else if !got1 && got2 && !got3 {
+			numOfSecond++
+		} else if !got1 && !got2 && got3 {
+			numOfThird++
+		} else if got1 && got3 {
+			numOfFirstAndThird++
+		} else if got1 && got2 {
+			numOfFirstAndSecond++
+		} else if got2 && got3 {
+			numOfSecondAndThird++
+		} else if !got1 && !got2 && !got3 {
+			numOfNone++
 		}
 
 		for i := len(p.prefs); i < NUM_OF_PREF; i++ {
@@ -857,11 +951,14 @@ func (ec *ExecutionContext) printHtml() string {
 
 	}
 	res.Append("</table></br>\n")
+	res.AppendFormat("Num of Pupil got all pref: %d, one less: %d, two less: %d</br>\n", numOfAll, numOfOneLess, numOfTwoLess)
+	res.AppendFormat("1:%d, 2:%d, 3:%d\n</br>1+2:%d, 1+3:%d, 2+3:%d\n</br>all3:%d, none:%d\n",
+		numOfFirst, numOfSecond, numOfThird, numOfFirstAndSecond, numOfFirstAndThird, numOfSecondAndThird, numOfThree, numOfNone)
 
 	//groups
 	res.Append("<h1>קבוצות</h1></br>\n")
 
-	res.Append("<table border=\"1\"><tr><th>#</th><th>שם</th><th>סוג</th>")
+	res.Append("<table border=\"1\"><tr><th>#</th><th>שם</th><th>סוג</th><th  width='35%'>חברי הקבוצה</th>")
 	for i := 0; i < ec.groupsCount; i++ {
 		res.AppendFormat("<th>כיתה %d (מס' בנים) (מספר בנות)</th>", i+1)
 	}
@@ -871,8 +968,21 @@ func (ec *ExecutionContext) printHtml() string {
 		groupType := "איחוד"
 		if !c.IsUnite {
 			groupType = "פירוד"
+			if c.speadToAll {
+				groupType = "פירוד מלא"
+			}
 		}
-		res.AppendFormat("<tr><td>%d</td><td>%s</td><td>%s</td>", c.ID(), c.Description(), groupType)
+		members := ""
+		for _, m := range c.members {
+			color := getColor(ec.pupils[m].groupBestScore)
+			gender := "&#9792;"
+			if ec.pupils[m].IsMale() {
+				gender = "&#9794;"
+			}
+			members += fmt.Sprintf("<span style=\"background-color: %s\">%s %s</span>, ", color, ec.pupils[m].name, gender)
+		}
+
+		res.AppendFormat("<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td>", c.ID(), c.Description(), groupType, members)
 		for i := 0; i < ec.groupsCount; i++ {
 
 			res.AppendFormat("<td>%d - (%d)(%d)</td>", c.countForGroup[i], c.boysForGroup[i], c.countForGroup[i]-c.boysForGroup[i])
