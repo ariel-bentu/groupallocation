@@ -1,0 +1,32 @@
+{
+    "sqltools.connections": [
+        {
+            "askForPassword": false,
+            "connectionTimeout": 30,
+            "database": "F4255F24BE6C4CC18269EEC06366C352",
+            "dialect": "MSSQL",
+            "domain": null,
+            "name": "hdb1",
+            "password": "Gb5l9LesmjWoPWKAO0qFh-biwfKlpTT0Pz.ZrEILx-fAG73D8cpX4q-TAOse21kTGH._1iMHlfCJDBjdQ.yQN_nTVcs2mSD-94j_A4pMMIE7_VTXktTw.iF-JdKFer.x",
+            "port": 30041,
+            "server": "127.0.0.1",
+            "username": "SBSS_60826609874253733910749352978974646305052190374291922946026100701"
+        },
+        {
+            "askForPassword": false,
+            "connectionTimeout": 30,
+            "database": "abc",
+            "dialect": "SAPHana",
+            "name": "h1",
+            "password": "Gb5l9LesmjWoPWKAO0qFh-biwfKlpTT0Pz.ZrEILx-fAG73D8cpX4q-TAOse21kTGH._1iMHlfCJDBjdQ.yQN_nTVcs2mSD-94j_A4pMMIE7_VTXktTw.iF-JdKFer.x",
+            "port": 30041,
+            "server": "127.0.0.1",
+            "username": "SBSS_60826609874253733910749352978974646305052190374291922946026100701"
+        },
+        {
+            "database": "./groups1.db",
+            "dialect": "SQLite",
+            "name": "groupAlloc"
+        }
+    ]
+}

@@ -87,7 +87,7 @@ func NewExecutionContext() *ExecutionContext {
 	ec.startTime = time.Now()
 	ec.done = false
 	ec.Cancel = false
-	ec.graceLevel = 0
+	ec.graceLevel = 1
 	ec.allowOnlyLastCount = 3 //todo from conf
 
 	t := time.Now().UnixNano()
@@ -212,7 +212,8 @@ func (e *ExecutionContext) Finish() {
 	if r != nil {
 		r.Scan(&maxId)
 	}
-	e.resultID = maxId + 1
+	maxId++
+	e.resultID = maxId
 
 	stmt, _ := db.Prepare("INSERT INTO taskResult (resultId, tenant, task, runDate, duration, foundCount) values (?,?,?,?,?,?)")
 	stmt.Exec(maxId, 0, e.taskId, e.endTime.Unix(), (e.endTime.Unix() - e.startTime.Unix()), e.resultsCount)
