@@ -62,10 +62,11 @@ type ExecutionContext struct {
 
 	timeLimit int //in seconds
 
-	MaxDepth           int
-	currentLevelCount  int
-	graceLevel         int
-	allowOnlyLastCount int
+	MaxDepth            int
+	currentLevelCount   int
+	graceLevel          int
+	sensitiveToOnlyLast int
+	allowOnlyLastCount  int
 
 	currentIteration             int
 	prefFailCount                int
@@ -87,7 +88,8 @@ func NewExecutionContext() *ExecutionContext {
 	ec.startTime = time.Now()
 	ec.done = false
 	ec.Cancel = false
-	ec.graceLevel = 1
+	ec.graceLevel = 0
+	ec.sensitiveToOnlyLast = 0
 	ec.allowOnlyLastCount = 3 //todo from conf
 
 	t := time.Now().UnixNano()
@@ -368,7 +370,7 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 
 	err := NewStringBuffer()
 	// initialize all sub groups from the "Groups" sheet
-	groups, e := db.Query("select id, name, sgtype, gendersensitive, speadevenly , inactive from subgroups where tenant=? and task=?", user.getTenant(), taskId)
+	groups, e := db.Query("select id, name, sgtype, gendersensitive, speadevenly , inactive, minAllowed, maxAllowed from subgroups where tenant=? and task=?", user.getTenant(), taskId)
 	if e != nil {
 		panic(e)
 	}
@@ -379,7 +381,8 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		var gendersensitive int
 		var speadevenly int
 		var inactive int
-		groups.Scan(&id, &name, &sgtype, &gendersensitive, &speadevenly, &inactive)
+		var minAllowed, maxAllowed int
+		groups.Scan(&id, &name, &sgtype, &gendersensitive, &speadevenly, &inactive, &minAllowed, &maxAllowed)
 		isUnite := sgtype == 0
 		g := NewSubGroupConstraint(id, name, isUnite, 0, ec.groupsCount)
 		if !isUnite {
@@ -389,6 +392,8 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		if inactive == 1 {
 			g.disabled = true
 		}
+		g.minAllowedGiven = minAllowed
+		g.maxAllowedGiven = maxAllowed
 
 		ec.Constraints = append(ec.Constraints, g)
 	}
@@ -825,7 +830,7 @@ func (ec *ExecutionContext) findGroup(id int) int {
 	return -1
 }
 
-var colors = []string{"green", "blue", "red", "yellow"}
+var colors = []string{"green", "yellow", "red", "blue"}
 
 func getColor(group int) string {
 	if group >= 0 && group < len(colors) {
@@ -843,10 +848,22 @@ func (ec *ExecutionContext) printHtml() string {
 		c.ValidateNew(ec, ec)
 	}
 
+	res.Append("<head>")
+	res.Append("<link href=\"https://fonts.googleapis.com/icon?family=Material+Icons\" rel=\"stylesheet\" >")
+
+	res.Append("<link rel=\"stylesheet\" type=\"text/css\" href=\"/index.css\">")
+	res.Append("<script src=\"/results.js\"></script>")
+	res.Append("<script>")
+	res.AppendFormat("MAX_GROUPS=%d;", ec.groupsCount)
+	res.Append("</script>")
+	res.Append("</head>")
+	res.Append("<body onload='setEvents()'>")
+
 	res.Append("<H2> כיתות </H2></br>\n")
-	res.Append("<table border=1><tr><th>#</th>")
+	res.Append("<table id='groups' border=1><tr><th>#</th>")
 	for i := 0; i < ec.groupsCount; i++ {
-		res.AppendFormat("<th>כיתה %d</th>", i+1)
+		colorName := getColor(i)
+		res.AppendFormat("<th bgcolor=\"%s\">כיתה %d</th>", colorName, i+1)
 	}
 	res.Append("</tr>\n")
 
@@ -866,10 +883,12 @@ func (ec *ExecutionContext) printHtml() string {
 		res.AppendFormat("<tr><td>%d</td>", i+1)
 		for j := 0; j < ec.groupsCount; j++ {
 			name := ""
+			pid := -1
 			if len(list[j]) > i {
 				name = ec.pupils[list[j][i]].name
+				pid = list[j][i]
 			}
-			res.AppendFormat("<td name=\"encryptedCell\">%s</td>", name)
+			res.AppendFormat("<td class=\"moveable\" pid= \"%d\" gid=\"%d\" name=\"encryptedCell\">%s</td>", pid, j, name)
 		}
 		res.Append("</tr>")
 	}
@@ -916,7 +935,12 @@ func (ec *ExecutionContext) printHtml() string {
 					got3 = true
 				}
 			}
+
 			res.Append(fmt.Sprintf("<td bgcolor=\"%s\" name=\"encryptedCell\">%s</td>", colorPref, refP.name))
+
+			if !got1 && !got2 && got3 {
+				res.Append(fmt.Sprintf("<td bgcolor=\"red\" >רק שלישית</td>"))
+			}
 		}
 
 		if numOfMatch == len(p.prefs) {
@@ -961,7 +985,8 @@ func (ec *ExecutionContext) printHtml() string {
 
 	res.Append("<table border=\"1\"><tr><th>#</th><th>שם</th><th>סוג</th><th  width='35%'>חברי הקבוצה</th>")
 	for i := 0; i < ec.groupsCount; i++ {
-		res.AppendFormat("<th>כיתה %d (מס' בנים) (מספר בנות)</th>", i+1)
+		colorName := getColor(i)
+		res.AppendFormat("<th bgcolor=\"%s\">כיתה %d (מס' בנים) (מספר בנות)</th>", colorName, i+1)
 	}
 	res.Append("</tr>\n")
 
@@ -1024,6 +1049,8 @@ func (ec *ExecutionContext) printHtml() string {
 			}
 		}
 	*/
+	res.Append("</body>")
+
 	return res.ToString()
 
 }

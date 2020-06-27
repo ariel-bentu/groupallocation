@@ -17,6 +17,8 @@ type SubGroupConstraint struct {
 	members         []int
 	originalCount   int
 	maxAllowed      float64
+	minAllowedGiven int
+	maxAllowedGiven int
 	minAllowed      float64
 	allowZero       bool
 	genderSensitive bool
@@ -51,10 +53,14 @@ func NewSubGroupConstraint(id int, desc string, isUnite bool, weight int, groups
 func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext, err *stringBuffer) {
 	if !c.IsUnite {
 		howManyGroupsToSpread := float64(ec.groupsCount)
-		c.minAllowed = 3
+		if c.minAllowedGiven > 0 {
+			c.minAllowed = float64(c.minAllowedGiven)
+		} else {
+			c.minAllowed = 3
+		}
 
 		c.allowZero = true
-		if !c.speadToAll {
+		if !c.speadToAll && c.minAllowedGiven == 0 {
 			howManyGroupsToSpread = float64(ec.groupsCount - 1)
 			if len(c.members)/ec.groupsCount >= 3 {
 				c.minAllowed = 4
@@ -65,6 +71,10 @@ func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext, err *stringBuffer) 
 		if c.speadToAll {
 			c.minAllowed = c.maxAllowed - 1
 			c.allowZero = false
+		}
+
+		if c.maxAllowedGiven > 0 {
+			c.maxAllowed = float64(c.maxAllowedGiven)
 		}
 
 		//c.stillAllowOneToBeOneTooMany = c.maxAllowed > math.Floor(c.maxAllowed)

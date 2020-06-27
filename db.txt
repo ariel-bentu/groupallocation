@@ -1,5 +1,5 @@
 create table pupils (tenant varchar(10), task int, id int, name varchar(50), gender smallint);
-create table subgroups (tenant varchar(10), task int, id int, name varchar(50), sgtype smallint, gendersensitive smallint, speadevenly smallint, inactive smallint);
+create table subgroups (tenant varchar(10), task int, id int, name varchar(50), sgtype smallint, gendersensitive smallint, speadevenly smallint, inactive smallint,minAllowed int, maxAllowed int);
 create table subgroupPupils (tenant varchar(10), task int, groupId int, pupilId int);
 create table taskResult (resultId int, tenant varchar(10), title char[40], task int, runDate int, duration int, foundCount int);
 create table taskResultLines (resultId int , pupilId int, groupId smallint);

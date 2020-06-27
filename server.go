@@ -117,7 +117,9 @@ func main() {
 		isInactive := getParamBool(r, "isInactive")
 		isGenderSensitive := getParamBool(r, "isGenderSensitive")
 		isSpreadEvenly := getParamBool(r, "isSpreadEvenly")
-		updateSubgroup(user, taskId, groupId, isUnite, isInactive, isGenderSensitive, isSpreadEvenly)
+		minAllowed := getParamInt(r, "minAllowed")
+		maxAllowed := getParamInt(r, "maxAllowed")
+		updateSubgroup(user, taskId, groupId, isUnite, isInactive, isGenderSensitive, isSpreadEvenly, minAllowed, maxAllowed)
 		return 201, "Successfully updated"
 	})
 
@@ -181,11 +183,19 @@ func main() {
 
 		limit := r.URL.Query().Get("limit")
 		if len(limit) > 0 {
-
 			ec.timeLimit, _ = strconv.Atoi(limit)
 		} else {
 			ec.timeLimit = 60
 		}
+		graceLevel := getParamInt(r, "graceLevel")
+		if graceLevel >= 0 {
+			ec.graceLevel = graceLevel
+		}
+		sensitiveToOnlyLast := getParamInt(r, "sensitiveToOnlyLast")
+		if sensitiveToOnlyLast >= 0 {
+			ec.sensitiveToOnlyLast = sensitiveToOnlyLast
+		}
+
 		go RunBackTrack(ec)
 		w.Write([]byte(`<html><body>Execution started.to check status, click <a href="/status?e=` + ec.ID() + `" >here</a></br>`))
 		if len(err) > 0 {

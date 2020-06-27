@@ -77,8 +77,11 @@ function saveGroup() {
         var isInactive = $("#isInactive").prop('checked');
         var isSpreadEvenly = $("#isSpreadEvenly").prop('checked');
         var isGenderSensitive = $("#isGenderSensitive").prop('checked');
+        var minAllowed = $("#minAllowed").val();
+        var maxAllowed = $("#maxAllowed").val();
         
-        var url = "/api/subgroup?task="+taskID+"&groupId="+sel.val() + "&isUnite="+isUnite+"&isInactive="+isInactive+"&isSpreadEvenly="+isSpreadEvenly+"&isGenderSensitive="+isGenderSensitive
+        var url = "/api/subgroup?task="+taskID+"&groupId="+sel.val() + "&isUnite="+isUnite+"&isInactive="+isInactive+"&isSpreadEvenly="+isSpreadEvenly+"&isGenderSensitive="+isGenderSensitive+
+          "&minAllowed="+minAllowed+"&maxAllowed="+maxAllowed
         $.ajax({
             url: url,
             type: 'PUT',
@@ -158,6 +161,9 @@ function loadGroups() {
             $(opt).data('isInactive',value.isInactive);
             $(opt).data('isSpreadEvenly',value.isSpreadEvenly);
             $(opt).data('isGenderSensitive',value.isGenderSensitive);
+            $(opt).data('minAllowed',value.minAllowed);
+            $(opt).data('maxAllowed',value.maxAllowed);
+
             $('#subgroups').append(opt)
         });
         selectFirst("subgroups")
@@ -188,6 +194,8 @@ function loadSubgroupPupils() {
             $("#isGenderSensitive").prop('checked', sel.data('isGenderSensitive'));
             $("#isSpreadEvenly").prop('checked', sel.data('isSpreadEvenly'));
             $("#isInactive").prop('checked', sel.data('isInactive'));
+            $("#maxAllowed").val(sel.data('maxAllowed'));
+            $("#minAllowed").val(sel.data('minAllowed'));
         })
         .done(function() {
             

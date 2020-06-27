@@ -85,6 +85,8 @@
             $("#isSpreadEvenly").change(setDirty("groupSave"));
             $("#isGenderSensitive").change(setDirty("groupSave"));
             $("#isInactive").change(setDirty("groupSave"));
+            $("#minAllowed").change(setDirty("groupSave"));
+            $("#maxAllowed").change(setDirty("groupSave"));
             $("#groupSave").click(saveGroup);
             $("#btnDeleteTask").click(deleteTask)
             $("#btnShowResult").click(function () {
@@ -113,7 +115,9 @@
 
             $("#btnRun").click(function () {
                 let limit = $("#runLimit").val()
-                window.open("/run?task=" + taskID + "&limit=" + limit);
+                let graceLevel =$("#graceLevel").val()
+                let sensitiveToOnlyLast = $("#sensitiveToOnlyLast").val()
+                window.open("/run?task=" + taskID + "&limit=" + limit + "&graceLevel="+graceLevel+"&sensitiveToOnlyLast="+sensitiveToOnlyLast);
 
             })
 
@@ -159,16 +163,20 @@
         <table style="width:80% ;text-align: right">
             <tr>
                 <td style="width: 15%">שם השיבוץ</td>
-                <td style="width: 60%">
+                <td style="width: 40%">
                     <select id="tasks" style="width: 100%">
                         <option></option>
                     </select>
 
                 <td>
                     <input type="button" id="btnDeleteTask" value="מחק שיבוץ" />
-                    <input type="button" id="btnRun" value="הרץ" />
+                    <input type="button" id="btnRun" value="הרץ" /><br/>
                     limit
-                    <input type="input" id="runLimit" value="20" />
+                    <input type="input" id="runLimit" value="20" /><br/>
+                    grace-level
+                    <input type="input" id="graceLevel" value="0" /><br/>
+                    sensitive-to-only-last
+                    <input type="input" id="sensitiveToOnlyLast" value="0" />
 
                 </td>
                 <td>
@@ -245,6 +253,8 @@
                     <input type="checkbox" id="isUnite">קבוצת איחוד</input><br />
                     <input type="checkbox" id="isSpreadEvenly">פיזור מלא</input><br />
                     <input type="checkbox" id="isGenderSensitive">רגיש למגדר </input><br />
+                    <input type="number" id="minAllowed">מינימום בכיתה</input><br />
+                    <input type="number" id="maxAllowed">מקסימום בכיתה</input><br />
                     <input type="checkbox" id="isInactive">כבוי זמנית</input>
                 </td>
                 <td />

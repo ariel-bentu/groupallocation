@@ -225,7 +225,7 @@ func fcSeperateGroups(ec *ExecutionContext, c []int, pupilIndex int, originalPup
 			g := ec.Constraints[i]
 			if !g.disabled {
 				boysLeft, girlsLeft := g.calculateMembersCounts(ec, PartialAssignment(c))
-				graceFactor := float64(ec.graceLevel) / 10
+				graceFactor := float64(ec.graceLevel) / 20
 				if len(g.members) < 3 || g.ID() == ec.allGroup.ID() {
 					graceFactor = 0
 				}
@@ -363,9 +363,10 @@ func validateNoLastPerf(ec *ExecutionContext, c []int) bool {
 	//check all those that this student is their perf and may have only last:
 	for _, inPerf := range ec.pupils[pupilIndex].incomingPrefs {
 		inRangePrefCount, foundPrefCount, isFoundLastPerf := prefStatus(ec.pupils[inPerf], c, inPerf)
-		enforceNoLastOnly = rand.Intn(len(ec.pupils)) > ec.graceLevel+1
+		enforceNoLastOnly = rand.Intn(len(ec.pupils)) > (ec.graceLevel + ec.sensitiveToOnlyLast)
 
 		if inRangePrefCount == NUM_OF_PREF && foundPrefCount == 1 && enforceNoLastOnly && isFoundLastPerf {
+			ec.pupils[pupilIndex].unsatisfiedPrefsCount++
 			return false
 		}
 	}

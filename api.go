@@ -36,6 +36,8 @@ type IdNameJson struct {
 	IsInactive        bool   `json:"isInactive"`
 	IsGenderSensitive bool   `json:"isGenderSensitive"`
 	IsSpreadEvenly    bool   `json:"isSpreadEvenly"`
+	MinAllowed        int    `json:"minAllowed"`
+	MaxAllowed        int    `json:"maxAllowed"`
 
 	IsMale bool `json:"isMale"`
 }
@@ -514,7 +516,7 @@ func getSubgroupList2(user *User, taskId int) ([]byte, error) {
 	var groups []IdNameJson
 
 	connect()
-	res, err := db.Query("select id, name, sgtype, inactive, gendersensitive, speadevenly from subgroups where tenant=? and task=?", user.getTenant(), taskId)
+	res, err := db.Query("select id, name, sgtype, inactive, gendersensitive, speadevenly, minAllowed, maxAllowed from subgroups where tenant=? and task=?", user.getTenant(), taskId)
 	if err != nil {
 		panic(err)
 	}
@@ -525,9 +527,18 @@ func getSubgroupList2(user *User, taskId int) ([]byte, error) {
 		var inactive int
 		var spreadEvenly int
 		var genderSensitive int
-		res.Scan(&id, &name, &sgtype, &inactive, &genderSensitive, &spreadEvenly)
-		newG := IdNameJson{Id: fmt.Sprintf("%d", id), Name: name, IsUnite: (sgtype == 0), IsInactive: (inactive == 1),
-			IsSpreadEvenly: (spreadEvenly == 1), IsGenderSensitive: (genderSensitive == 1)}
+		var minAllowed, maxAllowed int
+
+		res.Scan(&id, &name, &sgtype, &inactive, &genderSensitive, &spreadEvenly, &minAllowed, &maxAllowed)
+		newG := IdNameJson{
+			Id:   fmt.Sprintf("%d", id),
+			Name: name, IsUnite: (sgtype == 0),
+			IsInactive:        (inactive == 1),
+			IsSpreadEvenly:    (spreadEvenly == 1),
+			IsGenderSensitive: (genderSensitive == 1),
+			MinAllowed:        minAllowed,
+			MaxAllowed:        maxAllowed,
+		}
 		groups = append(groups, newG)
 
 	}
@@ -559,18 +570,20 @@ func createNewSubgroup(user *User, taskId int, name string) {
 	}
 
 }
-func updateSubgroup(user *User, taskId int, groupId int, isUnite bool, isInactive bool, isGenderSensitive bool, isSpreadEvenly bool) {
+func updateSubgroup(user *User, taskId int, groupId int, isUnite bool, isInactive bool,
+	isGenderSensitive bool, isSpreadEvenly bool, minAllowed int, maxAllowed int) {
 	connect()
 	sgType := 1
 	if isUnite {
 		sgType = 0
 	}
-	_, err := db.Exec("update subgroups set sgtype=?, inactive=? , gendersensitive=?, speadevenly=? where tenant =? and task=? and id=?",
+	affectedRows, err := db.Exec("update subgroups set sgtype=?, inactive=? , gendersensitive=?, speadevenly=?, minAllowed=?, maxAllowed=? where tenant =? and task=? and id=?",
 		sgType, getIntFromBool(isInactive), getIntFromBool(isGenderSensitive), getIntFromBool(isSpreadEvenly),
-		user.getTenant(), taskId, groupId)
+		minAllowed, maxAllowed, user.getTenant(), taskId, groupId)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Updated subgroup, afftected rows: %d\n", affectedRows)
 }
 
 func getSubGroupPupils2(user *User, taskId int, groupId int) ([]byte, error) {
