@@ -639,9 +639,9 @@ func setSubGroupPupils2(user *User, taskId int, groupId int, decoder *json.Decod
 	return nil
 }
 
-func getResultsList() ([]byte, error) {
+func getResultsList(taskId int) ([]byte, error) {
 	connect()
-	res, err := db.Query("select resultId, runDate, title from taskResult order by runDate desc")
+	res, err := db.Query("select resultId, runDate, title from taskResult where task = ? order by runDate desc", taskId)
 	if err != nil {
 		panic(err)
 	}
@@ -655,6 +655,12 @@ func getResultsList() ([]byte, error) {
 		runResults = append(runResults, newP)
 	}
 	return json.Marshal(runResults)
+}
+
+func movePupilInResult(resultId int, pupilId int, targetGroup int) error {
+	connect()
+	_, err := db.Exec("update taskResultLines set groupId = ? where resultId = ? and pupilId = ?", targetGroup, resultId, pupilId)
+	return err
 }
 
 func deleteResult(id int) {

@@ -114,7 +114,7 @@ func (e *ExecutionContext) ID() string {
 
 func (e *ExecutionContext) GetStatusHtml() (string, string) {
 	if e.done {
-		return e.printHtml(), fmt.Sprintf("%f,resultID: %d, #of found results: %d</br>%s", e.endTime.Sub(e.startTime).Seconds(), e.resultID, e.resultsCount, slice2String(e.resultsScoreHistory))
+		return e.printHtml(e.resultID), fmt.Sprintf("%f,resultID: %d, #of found results: %d</br>%s", e.endTime.Sub(e.startTime).Seconds(), e.resultID, e.resultsCount, slice2String(e.resultsScoreHistory))
 	}
 	//return fmt.Sprintf("Interaction Count:%d, progress: %d", e.currentIteration), fmt.Sprintf("%f", time.Now().Sub(e.startTime).Seconds(),
 	//	e.currentIteration/e.iterationCount*100)
@@ -239,6 +239,7 @@ func (e *ExecutionContext) ReadResults(id int) {
 		pId := e.findPupilById(pupilId)
 		e.pupils[pId].groupBestScore = groupId
 	}
+	e.resultID = id
 }
 
 func IsEmpty(c *xlsx.Cell) bool {
@@ -400,7 +401,7 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 	groups.Close()
 
 	ec.maleGroup = NewSubGroupConstraint(9999, "בנים", false, 70, ec.groupsCount)
-	ec.maleGroup.genderSensitive = true
+	ec.maleGroup.genderSensitive = false
 	ec.maleGroup.speadToAll = true
 	ec.Constraints = append(ec.Constraints, ec.maleGroup)
 
@@ -839,7 +840,7 @@ func getColor(group int) string {
 	return ""
 }
 
-func (ec *ExecutionContext) printHtml() string {
+func (ec *ExecutionContext) printHtml(resultID int) string {
 	res := NewStringBuffer()
 	res.Clear()
 
@@ -852,10 +853,13 @@ func (ec *ExecutionContext) printHtml() string {
 	res.Append("<link href=\"https://fonts.googleapis.com/icon?family=Material+Icons\" rel=\"stylesheet\" >")
 
 	res.Append("<link rel=\"stylesheet\" type=\"text/css\" href=\"/index.css\">")
-	res.Append("<script src=\"/results.js\"></script>")
+	res.Append("<script src=\"jquery.min.js\"></script>")
 	res.Append("<script>")
-	res.AppendFormat("MAX_GROUPS=%d;", ec.groupsCount)
+	res.AppendFormat("\nMAX_GROUPS=%d;", ec.groupsCount)
+	res.AppendFormat("\nresultID=%d;", resultID)
 	res.Append("</script>")
+
+	res.Append("<script src=\"/results.js\"></script>")
 	res.Append("</head>")
 	res.Append("<body onload='setEvents()'>")
 
@@ -886,7 +890,7 @@ func (ec *ExecutionContext) printHtml() string {
 			pid := -1
 			if len(list[j]) > i {
 				name = ec.pupils[list[j][i]].name
-				pid = list[j][i]
+				pid = ec.pupils[list[j][i]].id //list[j][i]
 			}
 			res.AppendFormat("<td class=\"moveable\" pid= \"%d\" gid=\"%d\" name=\"encryptedCell\">%s</td>", pid, j, name)
 		}

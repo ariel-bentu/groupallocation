@@ -271,6 +271,23 @@ func main() {
 		w.Write([]byte("</html>"))
 	})
 
+	m.Post(("/api/move-in-result"), func(w http.ResponseWriter, r *http.Request) {
+		id := getParamInt(r, "id")
+		if id < 0 {
+			w.Write([]byte("Bad or missing result 'id'"))
+			return
+		}
+		pupilID := getParamInt(r, "pupilId")
+		targetGroup := getParamInt(r, "targetGroup")
+
+		err := movePupilInResult(id, pupilID, targetGroup)
+		if err != nil {
+			w.Write([]byte("move failed: " + err.Error()))
+			return
+		}
+		w.Write([]byte("הזזה בוצעה בהצלחה"))
+	})
+
 	m.Delete("/api/delete-result", func(w http.ResponseWriter, r *http.Request) {
 		id := getParamInt(r, "id")
 		if id < 0 {
@@ -304,9 +321,9 @@ func main() {
 	})
 
 	m.Get("/api/available-results", func(w http.ResponseWriter, r *http.Request) {
-		//taskId := getParamInt(r, "task")
+		taskId := getParamInt(r, "task")
 
-		json, err := getResultsList()
+		json, err := getResultsList(taskId)
 		if err == nil {
 			w.Write(json)
 		}

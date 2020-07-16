@@ -229,7 +229,7 @@ function loadTasks() {
 }
 
 function loadAvailableResults() {
-    $.get("/api/available-results" , function(json) {
+    $.get("/api/available-results?task="+taskID , function(json) {
         
         emptyList("results")
         $.each(JSON.parse(json), function(i, value) {

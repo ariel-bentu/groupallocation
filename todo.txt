@@ -1,0 +1,2 @@
+- add remarks to pupils
+- add ability to disable a preference

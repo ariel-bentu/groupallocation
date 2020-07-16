@@ -80,6 +80,10 @@ func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext, err *stringBuffer) 
 		//c.stillAllowOneToBeOneTooMany = c.maxAllowed > math.Floor(c.maxAllowed)
 		if c.boysCount/ec.groupsCount >= 2 && c.genderSensitive {
 			c.minBoys = 2
+
+			//try fix gender sensitive 2020
+			c.minBoys = int(math.Floor(float64(c.boysCount)/float64(ec.groupsCount)) - 4)
+
 			//} else if c.boysCount/ec.groupsCount > 2 && c.genderSensitive {
 			//	c.minBoys = 2
 		} else {
@@ -96,6 +100,10 @@ func (c *SubGroupConstraint) AfterInit(ec *ExecutionContext, err *stringBuffer) 
 			c.minGirls = 2
 			//} else if girlsNum/ec.groupsCount > 2 && c.genderSensitive {
 			//	c.minGirls = 2
+
+			//try fix gender sensitive 2020
+			c.minGirls = int(math.Floor(float64(c.boysCount)/float64(ec.groupsCount)) - 4)
+
 		} else {
 			c.minGirls = 0
 		}
