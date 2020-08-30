@@ -140,6 +140,15 @@ func main() {
 		}
 	})
 
+	m.Get("/api/subgroups/pupil", func(w http.ResponseWriter, r *http.Request) {
+		taskId := getParamInt(r, "task")
+		pupilId := getParamInt(r, "pupilId")
+		json, err := getPupilSubgroups(user, taskId, pupilId)
+		if err == nil {
+			w.Write(json)
+		}
+	})
+
 	m.Post("/api/subgroup", func(w http.ResponseWriter, r *http.Request) (int, string) {
 		task := getParamInt(r, "task")
 		id := getParamInt(r, "groupId")

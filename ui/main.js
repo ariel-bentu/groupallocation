@@ -35,6 +35,22 @@ function showPupilInfo() {
     }
 }
 
+function loadPupilSubgroups() {
+    var sel = getSelectedOption("pupilsInPref1");
+    if (sel != undefined) {
+        $.get("/api/subgroups/pupil?task=" + taskID + "&pupilId=" + sel.val(), function (json) {
+            emptyList("pupilsSubgroups")
+
+            $.each(JSON.parse(json), function (i, value) {
+                $('#pupilsSubgroups').append($('<option>').text(value.name));
+            });
+        })
+            .fail(function () {
+                showMessage('Fail in loading pupil subgroups');
+            });
+    }
+}
+
 function loadPupilPrefs() {
 
     var selTask = getSelectedOption("tasks")
@@ -54,6 +70,8 @@ function loadPupilPrefs() {
             });
     }
 }
+
+
 function emptyPrefList() {
     $('#prefName1').val("");
     $('#prefName2').val("");
@@ -71,6 +89,21 @@ function addPrefToList(value, index) {
     $('#prefActive' + index).prop('checked', value.active);
 }
 
+function swapPref(src, dest) {
+    let val = $('#prefName'+src).val();
+    if (val == "" || $('#prefName'+dest).val() == "") {
+        return
+    }
+    let active = $('#prefActive' + src).prop('checked');
+
+    $('#prefName'+src).val($('#prefName'+dest).val());
+    $('#prefActive' + src).prop('checked', $('#prefActive' + dest).prop('checked'));
+
+    $('#prefName'+dest).val(val);
+    $('#prefActive' + dest).prop('checked', active);
+
+    setDirty("btnSavePrefs");
+}
 function addNewPref() {
     if (!getSelectedOption("pupilsInPref1")) {
         return

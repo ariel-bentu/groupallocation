@@ -545,17 +545,17 @@ func getPupilPrefs(user *User, taskId int, pupilId int) ([]byte, error) {
 	var pupils []IdRefIDJson
 
 	connect()
-	res, err := db.Query("select pupilId, refPupilId, active from pupilPrefs where tenant =? and task=? and pupilId =? order by priority", user.getTenant(), taskId, pupilId)
+	res, err := db.Query("select pupilId, refPupilId, inactive from pupilPrefs where tenant =? and task=? and pupilId =? order by priority", user.getTenant(), taskId, pupilId)
 	if err != nil {
 		panic(err)
 	}
 	for res.Next() {
 		var id int
 		var refId string
-		var active int
-		err = res.Scan(&id, &refId, &active)
+		var inactive int
+		err = res.Scan(&id, &refId, &inactive)
 
-		newP := IdRefIDJson{Id: fmt.Sprintf("%d", id), RefId: refId, Active: active != 0}
+		newP := IdRefIDJson{Id: fmt.Sprintf("%d", id), RefId: refId, Active: inactive != 1}
 		pupils = append(pupils, newP)
 	}
 
@@ -580,10 +580,11 @@ func setPupilPrefs(user *User, taskId int, pupilId int, decoder *json.Decoder) e
 		panic(err)
 	}
 
-	stmt, err := tx.Prepare("insert into pupilPrefs (tenant, task, pupilId, refPupilId, priority, active) values (?,?,?,?,?, ?)")
+	stmt, err := tx.Prepare("insert into pupilPrefs (tenant, task, pupilId, refPupilId, priority, inactive) values (?,?,?,?,?, ?)")
 
 	for i, p := range pupils {
-		_, err = stmt.Exec(user.getTenant(), taskId, pupilId, p.RefId, i, getIntFromBool(p.Active))
+
+		_, err = stmt.Exec(user.getTenant(), taskId, pupilId, p.RefId, i, getIntFromBool(!p.Active))
 		if err != nil {
 			tx.Rollback()
 			stmt.Close()
@@ -593,6 +594,29 @@ func setPupilPrefs(user *User, taskId int, pupilId int, decoder *json.Decoder) e
 	stmt.Close()
 	tx.Commit()
 	return nil
+}
+
+func getPupilSubgroups(user *User, taskId int, pupilId int) ([]byte, error) {
+	var groups []IdNameJson
+
+	connect()
+	res, err := db.Query("select B.id, B.name from subgroupPupils A , subgroups B  where A.tenant=? and A.task=? and A.tenant = B.tenant and A.task = B.task and A.groupId = B.id and A.pupilId=?", user.getTenant(), taskId, pupilId)
+	if err != nil {
+		panic(err)
+	}
+	for res.Next() {
+		var id int
+		var name string
+
+		res.Scan(&id, &name)
+		newG := IdNameJson{
+			Id:   fmt.Sprintf("%d", id),
+			Name: name,
+		}
+		groups = append(groups, newG)
+
+	}
+	return json.Marshal(groups)
 }
 
 func getSubgroupList2(user *User, taskId int) ([]byte, error) {

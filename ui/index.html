@@ -55,10 +55,12 @@
             $("#pupilsInPref1").click(()=>{
                 showPupilInfo();
                 loadPupilPrefs();
+                loadPupilSubgroups();
             })
             $("#pupilsInPref1").change(()=>{
                 showPupilInfo();
                 loadPupilPrefs();
+                loadPupilSubgroups();
             })
 
             $("#pupilName").change(()=>setDirty("btnSavePupil"));
@@ -81,7 +83,10 @@
             $("#removePref1").click(()=>removePrefFromList(1));
             $("#removePref2").click(()=>removePrefFromList(2));
             $("#removePref3").click(()=>removePrefFromList(3));
-
+            $("#moveDownPref1").click(()=>swapPref(1,2));
+            $("#moveDownPref2").click(()=>swapPref(2,3));
+            $("#moveUpPref2").click(()=>swapPref(2,1));
+            $("#moveUpPref3").click(()=>swapPref(3,2));
 
             $("#btnSavePrefs").click(savePupilPrefs);
             $("#prefActive1").change(()=>setDirty("btnSavePrefs"));
@@ -280,7 +285,7 @@
                             <td><input type="checkbox" id="prefActive1" /></td>
                             <td>
                                 <button id="removePref1">מחק</button>
-                                <button id="moveDownPref1">V</button>
+                                <button id="moveDownPref1">&darr;</button>
                             </td>
                         </tr>
                         <tr>
@@ -289,8 +294,8 @@
                             <td><input type="checkbox" id="prefActive2" /></td>
                             <td>
                                 <button id="removePref2">מחק</button>
-                                <button id="moveDownPref2">V</button>
-                                <button id="moveUpPref2">^</button>
+                                <button id="moveDownPref2">&darr;</button>
+                                <button id="moveUpPref2">&uarr;</button>
                             </td>
                         </tr>
                         <tr>
@@ -299,7 +304,7 @@
                             <td><input type="checkbox" id="prefActive3" /></td>
                             <td style='justify-items: flex-start;'>
                                 <button id="removePref3">מחק</button>
-                                <button id="moveUpPref3">^</button>
+                                <button id="moveUpPref3">&uarr;</button>
                             </td>
                         </tr>
                     </table>
