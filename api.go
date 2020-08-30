@@ -38,6 +38,7 @@ type IdNameJson struct {
 	IsSpreadEvenly    bool   `json:"isSpreadEvenly"`
 	MinAllowed        int    `json:"minAllowed"`
 	MaxAllowed        int    `json:"maxAllowed"`
+	IsGarden          bool   `json:"isGarden"`
 
 	IsMale  bool   `json:"isMale"`
 	Active  bool   `json:"active"`
@@ -45,8 +46,9 @@ type IdNameJson struct {
 }
 
 type IdRefIDJson struct {
-	Id    string `json:"id"`
-	RefId string `json:"refId"`
+	Id     string `json:"id"`
+	RefId  string `json:"refId"`
+	Active bool   `json:"active"`
 }
 
 type IdTitleDateJson struct {
@@ -508,16 +510,17 @@ func getPupilPrefs(user *User, taskId int, pupilId int) ([]byte, error) {
 	var pupils []IdRefIDJson
 
 	connect()
-	res, err := db.Query("select pupilId, refPupilId from pupilPrefs where tenant =? and task=? and pupilId =? order by priority", user.getTenant(), taskId, pupilId)
+	res, err := db.Query("select pupilId, refPupilId, active from pupilPrefs where tenant =? and task=? and pupilId =? order by priority", user.getTenant(), taskId, pupilId)
 	if err != nil {
 		panic(err)
 	}
 	for res.Next() {
 		var id int
 		var refId string
-		err = res.Scan(&id, &refId)
+		var active int
+		err = res.Scan(&id, &refId, &active)
 
-		newP := IdRefIDJson{Id: fmt.Sprintf("%d", id), RefId: refId}
+		newP := IdRefIDJson{Id: fmt.Sprintf("%d", id), RefId: refId, Active: active != 0}
 		pupils = append(pupils, newP)
 	}
 
@@ -542,10 +545,10 @@ func setPupilPrefs(user *User, taskId int, pupilId int, decoder *json.Decoder) e
 		panic(err)
 	}
 
-	stmt, err := tx.Prepare("insert into pupilPrefs (tenant, task, pupilId, refPupilId, priority) values (?,?,?,?,?)")
+	stmt, err := tx.Prepare("insert into pupilPrefs (tenant, task, pupilId, refPupilId, priority, active) values (?,?,?,?,?, ?)")
 
 	for i, p := range pupils {
-		_, err = stmt.Exec(user.getTenant(), taskId, pupilId, p.RefId, i)
+		_, err = stmt.Exec(user.getTenant(), taskId, pupilId, p.RefId, i, getIntFromBool(p.Active))
 		if err != nil {
 			tx.Rollback()
 			stmt.Close()
@@ -561,7 +564,7 @@ func getSubgroupList2(user *User, taskId int) ([]byte, error) {
 	var groups []IdNameJson
 
 	connect()
-	res, err := db.Query("select id, name, sgtype, inactive, gendersensitive, speadevenly, minAllowed, maxAllowed from subgroups where tenant=? and task=?", user.getTenant(), taskId)
+	res, err := db.Query("select id, name, sgtype, inactive, gendersensitive, speadevenly, minAllowed, maxAllowed, garden from subgroups where tenant=? and task=?", user.getTenant(), taskId)
 	if err != nil {
 		panic(err)
 	}
@@ -573,13 +576,15 @@ func getSubgroupList2(user *User, taskId int) ([]byte, error) {
 		var spreadEvenly int
 		var genderSensitive int
 		var minAllowed, maxAllowed int
+		var garden int
 
-		res.Scan(&id, &name, &sgtype, &inactive, &genderSensitive, &spreadEvenly, &minAllowed, &maxAllowed)
+		res.Scan(&id, &name, &sgtype, &inactive, &genderSensitive, &spreadEvenly, &minAllowed, &maxAllowed, &garden)
 		newG := IdNameJson{
 			Id:   fmt.Sprintf("%d", id),
 			Name: name, IsUnite: (sgtype == 0),
 			IsInactive:        (inactive == 1),
 			IsSpreadEvenly:    (spreadEvenly == 1),
+			IsGarden:          (garden == 1),
 			IsGenderSensitive: (genderSensitive == 1),
 			MinAllowed:        minAllowed,
 			MaxAllowed:        maxAllowed,
@@ -616,13 +621,13 @@ func upsertSubgroup(user *User, taskId int, id int, group IdNameJson) error {
 		}
 
 		_, err = db.Exec(`insert into subgroups (tenant, task, id, 
-				name, sgtype, gendersensitive, speadevenly, inactive, minAllowed, maxAllowed) values 
-				      (?, ?, ?, ?, ? , ?, ?, ?, ?, ?)`,
+				name, sgtype, gendersensitive, speadevenly, inactive, minAllowed, maxAllowed, garden) values 
+				      (?, ?, ?, ?, ? , ?, ?, ?, ?, ?, ?)`,
 			user.getTenant(), taskId, groupId,
-			group.Name, sgtype, getIntFromBool(group.IsGenderSensitive), getIntFromBool(group.IsSpreadEvenly), getIntFromBool(group.IsInactive), group.MinAllowed, group.MaxAllowed)
+			group.Name, sgtype, getIntFromBool(group.IsGenderSensitive), getIntFromBool(group.IsSpreadEvenly), getIntFromBool(group.IsInactive), group.MinAllowed, group.MaxAllowed, getIntFromBool(group.IsGarden))
 	} else {
-		_, err = db.Exec("update subgroups set name=?, sgtype=?, gendersensitive=?, speadevenly=?, inactive=? ,  minAllowed=?, maxAllowed=? where tenant =? and task=? and id=?",
-			group.Name, sgtype, getIntFromBool(group.IsGenderSensitive), getIntFromBool(group.IsSpreadEvenly), getIntFromBool(group.IsInactive), group.MinAllowed, group.MaxAllowed,
+		_, err = db.Exec("update subgroups set name=?, sgtype=?, gendersensitive=?, speadevenly=?, inactive=? ,  minAllowed=?, maxAllowed=?, garden=? where tenant =? and task=? and id=?",
+			group.Name, sgtype, getIntFromBool(group.IsGenderSensitive), getIntFromBool(group.IsSpreadEvenly), getIntFromBool(group.IsInactive), group.MinAllowed, group.MaxAllowed, getIntFromBool(group.IsGarden),
 			user.getTenant(), taskId, groupId)
 	}
 	return err

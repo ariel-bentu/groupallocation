@@ -56,6 +56,10 @@
                 showPupilInfo();
                 loadPupilPrefs();
             })
+            $("#pupilsInPref1").change(()=>{
+                showPupilInfo();
+                loadPupilPrefs();
+            })
 
             $("#pupilName").change(()=>setDirty("btnSavePupil"));
             $("#pupilGender").change(()=>setDirty("btnSavePupil"));
@@ -72,13 +76,17 @@
             });
             $("#deletePupil").click(deletePupil);
             
-            $("#pupilsInPref2").dblclick(function () { addPupil("pupilsInPref2", "pupilsPrefs", "btnSavePrefs") });
-            $("#btnAddPref").click(function () { addPupil("pupilsInPref2", "pupilsPrefs", "btnSavePupilPref") });
-            $("#btnRemovePref").click(function () { removePupil("pupilsPrefs", "btnSavePrefs") });
-            $("#pupilsPrefs").dblclick(function () { removePupil("pupilsPrefs", "btnSavePrefs") });
+            $("#pupilsInPref2").dblclick(addNewPref);
+            
+            $("#removePref1").click(()=>removePrefFromList(1));
+            $("#removePref2").click(()=>removePrefFromList(2));
+            $("#removePref3").click(()=>removePrefFromList(3));
+
 
             $("#btnSavePrefs").click(savePupilPrefs);
-
+            $("#prefActive1").change(()=>setDirty("btnSavePrefs"));
+            $("#prefActive2").change(()=>setDirty("btnSavePrefs"));
+            $("#prefActive3").change(()=>setDirty("btnSavePrefs"));
             
         
 
@@ -106,6 +114,7 @@
             $("#isInactive").change(()=>setDirty("groupSave"));
             $("#minAllowed").change(()=>setDirty("groupSave"));
             $("#maxAllowed").change(()=>setDirty("groupSave"));
+            $("#isGarden").change(()=>setDirty("groupSave"));
             $("#groupSave").click(saveSubgroup);
 
             $("#newSubgroup").click(function () {
@@ -117,6 +126,7 @@
                 $("#isSpreadEvenly").prop("checked", false);
                 $("#isGenderSensitive").prop("checked", false);
                 $("#isInactive").prop("checked", false);
+                $("#isGarden").prop("checked", false);
                 
                 clearDirty("groupSave")
             });
@@ -171,7 +181,7 @@
 </head>
 
 <body>
-    <div id="message"></div>
+    
     
 
     <div dir="rtl">
@@ -207,6 +217,7 @@
             </tr>
         </table>
         <h2 align="center">תלמידים</h2>
+        <div><p style="color: #ff0000" id="message"</p></div>
         <table style="width:100% ;text-align: center">
             <tr>
                 <td style="width: 40%">
@@ -216,7 +227,7 @@
                         <optgroup label="בחר תלמיד כדי לראות/לקבוע העדפותיו">
                     </select>
                 </td>
-                <td style="width: 60%;vertical-align: text-top;text-align: right;">
+                <td style="vertical-align: text-top;text-align: right;">
                     <table>
                         <tr>
                             <td>ID</td>
@@ -238,12 +249,13 @@
                         </tr>
                         <tr>
                             <td>הערות</td>
-                            <td><textarea rows="3" cols="60" id="pupilRemarks" ></textarea></td>
+                            <td><textarea rows="3" cols="30" id="pupilRemarks" ></textarea></td>
                         </tr>
                         <tr>
                             <td>פעיל</td>
                             <td><input type="checkbox" id="pupilActive" /></td>
                         </tr>
+
                         <tr>
                             <td></td>
                             <td>
@@ -253,6 +265,53 @@
                             </td>
                         </tr>
                     </table>
+                </td>
+                <td style="vertical-align:top;width: 40%" >
+                    <h3 align="center">העדפות</h3>
+                    <table id="pupilsPrefs" border="1"> 
+                        <tr>
+                            <td width="10%">#</td>
+                            <td width= "50%">שם</td>
+                            <td width="10%">פעיל</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td><input type="text" readonly id="prefName1"></td>
+                            <td><input type="checkbox" id="prefActive1" /></td>
+                            <td>
+                                <button id="removePref1">מחק</button>
+                                <button id="moveDownPref1">V</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><input type="text" readonly id="prefName2"></td>
+                            <td><input type="checkbox" id="prefActive2" /></td>
+                            <td>
+                                <button id="removePref2">מחק</button>
+                                <button id="moveDownPref2">V</button>
+                                <button id="moveUpPref2">^</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><input type="text" readonly id="prefName3"></td>
+                            <td><input type="checkbox" id="prefActive3" /></td>
+                            <td style='justify-items: flex-start;'>
+                                <button id="removePref3">מחק</button>
+                                <button id="moveUpPref3">^</button>
+                            </td>
+                        </tr>
+                    </table>
+                    <!-- <select id="pupilsPrefs" size="5" style="width: 100%">
+                        <optgroup label="העדפות לפי סדר">
+                    </select> -->
+                    <input type="button" id="btnSavePrefs" value="שמור העדפות תלמיד" disabled />
+
+                    <select id="pupilsSubgroups" size="5" style="width: 100%">
+                        <optgroup label="קבוצות של התלמיד"></optgroup>
+                    </select>
+                    
                 </td>
             </tr>
         </table>
@@ -264,25 +323,13 @@
                     <input type="text" id="searchPref2" placeholder="הקלדי שם לחיפוש"
                         style="height: 15px; width: 90%; margin:4px"></text><br />
                     <select id="pupilsInPref2" size="10" style="width: 100%">
-                        <optgroup label="תלמידים">
+                        <optgroup label="הקלקי כפול להוספה להעדפות">
 
                     </select>
                 </td>
-                <td style="width: 5%; " valign="top">
-                    <br /><br /><br />
-                    <button id="btnAddPref">&gt;&gt;</button>
-                    <br />
-                    <button id="btnRemovePref">&lt;&lt;</button>
+                
 
-                </td>
-
-                <td style="width: 25%" valign="top">
-                    <br /><br />
-                    <select id="pupilsPrefs" size="5" style="width: 100%">
-                        <optgroup label="העדפות לפי סדר">
-                    </select>
-                    <input type="button" id="btnSavePrefs" value="שמור העדפות תלמיד" disabled />
-                </td>
+                
             </tr>
            
         </table>
@@ -310,6 +357,10 @@
                             <td><input type="text" id="groupName" /></td>
                         </tr>
                         <tr>
+                            <td>קבוצת גן</td>
+                            <td><input type="checkbox" id="isGarden" /></td>
+                        </tr>
+                        <tr>
                             <td>קבוצת איחוד</td>
                             <td><input type="checkbox" id="isUnite" /></td>
                         </tr>
@@ -329,6 +380,7 @@
                             <td>מקסימום בכיתה</td>
                             <td><input type="number" id="maxAllowed" /></td>
                         </tr>
+                        
                         <tr>
                             <td>כבוי זמנית</td>
                             <td><input type="checkbox" id="isInactive" /></td>

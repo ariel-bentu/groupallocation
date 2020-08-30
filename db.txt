@@ -1,11 +1,11 @@
 create table pupils (tenant varchar(10), task int, id int, name varchar(50), gender smallint, remarks varchar (200)), active smallint;
-create table subgroups (tenant varchar(10), task int, id int, name varchar(50), sgtype smallint, gendersensitive smallint, speadevenly smallint, inactive smallint,minAllowed int, maxAllowed int);
+create table subgroups (tenant varchar(10), task int, id int, name varchar(50), sgtype smallint, gendersensitive smallint, speadevenly smallint, inactive smallint,minAllowed int, maxAllowed int, garden smallint);
 create table subgroupPupils (tenant varchar(10), task int, groupId int, pupilId int);
 create table taskResult (resultId int, tenant varchar(10), title char[40], task int, runDate int, duration int, foundCount int);
 create table taskResultLines (resultId int , pupilId int, groupId smallint);
 create table task(tenant varchar(10), task int, name varchar(50), createDate int, isEncrypted int);
 create table users(tenant varchar(10), name varchar(50), email varchar(50), pwd varchar(12), role smallint, pupilScope int);
-create table pupilPrefs (tenant varchar(10), task int, pupilId int, refPupilId int, priority int);
+create table pupilPrefs (tenant varchar(10), task int, pupilId int, refPupilId int, priority int, active smallint);
 
 
 

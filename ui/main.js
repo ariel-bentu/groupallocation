@@ -43,11 +43,10 @@ function loadPupilPrefs() {
     var sel = getSelectedOption("pupilsInPref1");
     if (sel != undefined) {
         $.get("/api/pupil/prefs?task=" + selTask.val() + "&pupilId=" + sel.val(), function (json) {
-            emptyList("pupilsPrefs")
+            emptyPrefList()
 
             $.each(JSON.parse(json), function (i, value) {
-                var name = $("#pupilsInPref1 option[value='" + value.refId + "']").text()
-                $('#pupilsPrefs').append($('<option>').text(name).attr('value', value.refId));
+                addPrefToList(value, i + 1);
             });
         })
             .fail(function () {
@@ -55,18 +54,90 @@ function loadPupilPrefs() {
             });
     }
 }
+function emptyPrefList() {
+    $('#prefName1').val("");
+    $('#prefName2').val("");
+    $('#prefName3').val("");
+    $('#prefActive1').prop("checked", true);
+    $('#prefActive2').prop("checked", true);
+    $('#prefActive3').prop("checked", true);
+}
 
+function addPrefToList(value, index) {
+    var name = $("#pupilsInPref1 option[value='" + value.refId + "']").data('name')
 
+    $('#prefName' + index).val(name);
+    $('#prefName' + index).attr('value', value.refId);
+    $('#prefActive' + index).prop('checked', value.active);
+}
+
+function addNewPref() {
+    if (!getSelectedOption("pupilsInPref1")) {
+        return
+    }
+    var sel = getSelectedOption("pupilsInPref2");
+    if (sel != undefined) {
+        let id = sel.val();
+        var name = $("#pupilsInPref1 option[value='" + id + "']").text()
+
+        for (var j = 1; j<4;j++) {
+            if ($('#prefName'+j).val() == name) {
+                showMessage("תלמיד זה נבחר כבר כהעדפה")
+                return
+            }
+        }
+        //find empty slot:
+        let index = -1
+        if ($('#prefName1').val() == "") {
+            index = 1
+        } else  if ($('#prefName2').val() == "") {
+            index=2
+        } else  if ($('#prefName3').val() == "") {
+            index=3
+        }
+        if (index < 0) {
+            showMessage("כל ההעדפות נבחרו")
+            return;
+        }
+
+        $('#prefName' + index).val(name);
+        $('#prefName' + index).attr('value', id);
+       
+        setDirty("btnSavePrefs")
+    }
+
+}
+
+function removePrefFromList(index) {
+    for (var i = index; i < 3; i++) {
+        let j = i + 1
+        $('#prefName' + i).val($('#prefName' + j).val());
+        $('#prefName' + i).attr('value', $('#prefName' + j).attr('value'));
+        $('#prefName' + j).val("");
+        $('#prefName' + j).attr('value', "");
+    }
+    if (index == 3) {
+        $('#prefName3').val("");
+        $('#prefName3').attr('value', "");
+    }
+    setDirty("btnSavePrefs");
+}
 
 function savePupilPrefs() {
     var sel = getSelectedOption("pupilsInPref1");
     if (sel != undefined) {
         var pupilId = sel.val()
         var pupils = []
-        $("#pupilsPrefs option").each(function (i) {
-            var opt = $("#pupilsPrefs option").eq(i);
-            pupils.push({ "id": pupilId, "refId": opt.val() })
-        });
+        for (var i=1;i<4;i++) {
+            if ($("#prefName"+i).val() != "") {
+                pupils.push({
+                     "id": pupilId, 
+                     "refId": $("#prefName"+i).attr('value'),
+                     "active": $("#prefActive"+i).prop('checked')
+                    })
+            }
+        }
+        
         var jsonStr = JSON.stringify(pupils);
 
         $.post("/api/pupil/prefs?task=" + taskID + "&pupilId=" + pupilId, jsonStr, function (json) {
@@ -167,6 +238,7 @@ function saveSubgroup() {
         var isGenderSensitive = $("#isGenderSensitive").prop('checked');
         var minAllowed = $("#minAllowed").val();
         var maxAllowed = $("#maxAllowed").val();
+        var isGarden = $("#isGarden").prop('checked')
 
         var url = "/api/subgroup?task=" + taskID + "&groupId=" + ID
         $.ajax({
@@ -179,7 +251,8 @@ function saveSubgroup() {
                 "isGenderSensitive": isGenderSensitive,
                 "isInactive": isInactive,
                 "minAllowed": minAllowed,
-                "maxAllowed": maxAllowed
+                "maxAllowed": maxAllowed,
+                "isGarden": isGarden
             }),
             success: function (result) {
                 showMessage("קבוצה עודכנה בהצלחה")
@@ -191,8 +264,7 @@ function saveSubgroup() {
 }
 
 
-function
-    addPupil(srcList, targetList, btn) {
+function addPupil(srcList, targetList, btn) {
     var sel = getSelectedOption(srcList);
     if (sel != undefined) {
         addOptionToList(targetList, sel)
@@ -262,6 +334,7 @@ function loadGroups(currentName) {
             $(opt).data('isGenderSensitive', value.isGenderSensitive);
             $(opt).data('minAllowed', value.minAllowed);
             $(opt).data('maxAllowed', value.maxAllowed);
+            $(opt).data('isGarden', value.isGarden);
 
             if (currentName && currentName == value.name) {
                 currentID = value.id;
@@ -293,6 +366,7 @@ function showGroupInfo() {
         $("#isGenderSensitive").prop('checked', sel.data('isGenderSensitive'));
         $("#isSpreadEvenly").prop('checked', sel.data('isSpreadEvenly'));
         $("#isInactive").prop('checked', sel.data('isInactive'));
+        $("#isGarden").prop('checked', sel.data('isGarden'));
         $("#maxAllowed").val(sel.data('maxAllowed'));
         $("#minAllowed").val(sel.data('minAllowed'));
     }

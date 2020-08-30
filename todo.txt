@@ -1,5 +1,7 @@
 V- add remarks to pupils
-- add ability to disable a preference
+V- add ability to disable a preference
 V- add/delete pupil
 V- ui for inactive pupil
-- flag groups as gardens and show gardens in main classes distribution
+V- flag groups as gardens 
+- show gardens in main classes distribution
+- use active state of pref in algorithm
