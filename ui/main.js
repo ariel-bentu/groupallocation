@@ -184,7 +184,7 @@ function savePupil() {
         success: function (result) {
             showMessage("תלמיד נשמר בהצלחה")
             loadPupils(name);
-            setCurrentByName
+            
             clearDirty("btnSavePupil")
         }
     });

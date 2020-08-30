@@ -462,8 +462,43 @@ func upsertPupil(task int, id int, pupil IdNameJson) error {
 		if r != nil {
 			r.Scan(&maxId)
 		}
-		_, err := db.Exec("insert into pupils (tenant, task, id, name, gender, inactive, remarks) values (?,?,?,?,?,?,?)", user.getTenant(), task, maxId+1,
+
+		var results []int
+		//assign the new pupil to 1st group in all results
+		res, err := db.Query("select resultId from taskResult where task=?", task)
+		if err != nil {
+			return err
+		}
+		for res.Next() {
+			var resultId int
+			res.Scan(&resultId)
+			results = append(results, resultId)
+		}
+		res.Close()
+
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Exec("insert into pupils (tenant, task, id, name, gender, inactive, remarks) values (?,?,?,?,?,?,?)", user.getTenant(), task, maxId+1,
 			pupil.Name, gender, inactive, pupil.Remarks)
+		if err == nil {
+			if inactive != 1 {
+
+				for _, rid := range results {
+					_, err = tx.Exec("insert into taskResultLines (resultId, pupilId,groupId) values (?,?,?)",
+						rid, maxId+1, 0)
+					if err != nil {
+						tx.Rollback()
+						return err
+					}
+				}
+			}
+			tx.Commit()
+			return nil
+		}
+		tx.Rollback()
 		return err
 	}
 

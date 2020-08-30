@@ -5,3 +5,4 @@ V- ui for inactive pupil
 V- flag groups as gardens 
 - show gardens in main classes distribution
 - use active state of pref in algorithm
+- when adding pupil, add it to 1st class - consider

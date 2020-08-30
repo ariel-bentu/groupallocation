@@ -959,9 +959,6 @@ func (ec *ExecutionContext) printHtml(resultID int) string {
 
 			res.Append(fmt.Sprintf("<td bgcolor=\"%s\" name=\"encryptedCell\">%s</td>", colorPref, refP.name))
 
-			if !got1 && !got2 && got3 {
-				res.Append(fmt.Sprintf("<td bgcolor=\"red\" >רק שלישית</td>"))
-			}
 		}
 
 		if numOfMatch == len(p.prefs) {
@@ -990,8 +987,14 @@ func (ec *ExecutionContext) printHtml(resultID int) string {
 			numOfNone++
 		}
 
-		for i := len(p.prefs); i < NUM_OF_PREF; i++ {
+		for i := len(p.origOrderPrefs); i < NUM_OF_PREF; i++ {
 			res.Append("<td>אין</td>")
+		}
+		if !got1 && !got2 && got3 {
+			res.Append(fmt.Sprintf("<td bgcolor=\"red\" >רק שלישית</td>"))
+		}
+		if len(p.origOrderPrefs) > 0 && numOfMatch == 0 {
+			res.Append(fmt.Sprintf("<td bgcolor=\"red\" >לא קיבל אף עדיפות</td>"))
 		}
 		res.Append("</tr>\n")
 
