@@ -59,7 +59,7 @@ func bt(ec *ExecutionContext, c []int) int {
 	//jump := accept(ec, c)
 	//if jump == 0 {
 	ec.statusCandidate = c
-	if len(c) == len(ec.pupils) {
+	if len(c) == ec.activePupilsCount {
 		//found a solution
 
 		//stores this candidate and continue
@@ -186,7 +186,7 @@ func prefStatus(p *Pupil, c []int, pupilIndex int) (int, int, bool) {
 
 func first(ec *ExecutionContext, c []int) []int {
 	k := len(c)
-	if k == len(ec.pupils) {
+	if k == ec.activePupilsCount {
 		return nil
 	}
 	preferedValue := 0
@@ -363,7 +363,7 @@ func validateNoLastPerf(ec *ExecutionContext, c []int) bool {
 	//check all those that this student is their perf and may have only last:
 	for _, inPerf := range ec.pupils[pupilIndex].incomingPrefs {
 		inRangePrefCount, foundPrefCount, isFoundLastPerf := prefStatus(ec.pupils[inPerf], c, inPerf)
-		enforceNoLastOnly = rand.Intn(len(ec.pupils)) > (ec.graceLevel + ec.sensitiveToOnlyLast)
+		enforceNoLastOnly = rand.Intn(ec.activePupilsCount) > (ec.graceLevel + ec.sensitiveToOnlyLast)
 
 		if inRangePrefCount == NUM_OF_PREF && foundPrefCount == 1 && enforceNoLastOnly && isFoundLastPerf {
 			ec.pupils[pupilIndex].unsatisfiedPrefsCount++

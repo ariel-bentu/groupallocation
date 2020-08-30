@@ -80,7 +80,43 @@ func main() {
 	})
 
 	m.Post("/api/pupils", func(w http.ResponseWriter, r *http.Request) (int, string) {
-		return 201, "Successufuly added"
+		task := getParamInt(r, "task")
+		id := getParamInt(r, "ID")
+
+		decoder := json.NewDecoder(r.Body)
+		defer r.Body.Close()
+		var pupil IdNameJson
+		decoder.Decode((&pupil))
+
+		err := upsertPupil(task, id, pupil)
+		if err == nil {
+			return 201, "Successfully Updated"
+		}
+		return 500, err.Error()
+	})
+
+	m.Put("/api/pupils", func(w http.ResponseWriter, r *http.Request) (int, string) {
+		task := getParamInt(r, "task")
+		decoder := json.NewDecoder(r.Body)
+		defer r.Body.Close()
+		var pupil IdNameJson
+		decoder.Decode((&pupil))
+
+		err := upsertPupil(task, -1, pupil)
+		if err == nil {
+			return 201, "Successfully Added"
+		}
+		return 500, err.Error()
+	})
+
+	m.Delete("/api/pupils", func(w http.ResponseWriter, r *http.Request) (int, string) {
+		task := getParamInt(r, "task")
+		id := getParamInt(r, "id")
+		err := deletePupil(&User{tenant: "ariel"}, task, id)
+		if err == nil {
+			return 201, "Successfully Added"
+		}
+		return 500, err.Error()
 	})
 
 	m.Get("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
@@ -103,24 +139,45 @@ func main() {
 			w.Write(json)
 		}
 	})
+
 	m.Post("/api/subgroup", func(w http.ResponseWriter, r *http.Request) (int, string) {
-		taskId := getParamInt(r, "task")
-		name := r.URL.Query().Get("name")
-		createNewSubgroup(user, taskId, name)
-		return 201, "Successufuly added"
+		task := getParamInt(r, "task")
+		id := getParamInt(r, "groupId")
+
+		decoder := json.NewDecoder(r.Body)
+		defer r.Body.Close()
+		var pupil IdNameJson
+		decoder.Decode((&pupil))
+
+		err := upsertSubgroup(&User{tenant: "ariel"}, task, id, pupil)
+		if err == nil {
+			return 201, "Successfully Updated"
+		}
+		return 500, err.Error()
 	})
 
 	m.Put("/api/subgroup", func(w http.ResponseWriter, r *http.Request) (int, string) {
-		taskId := getParamInt(r, "task")
-		groupId := getParamInt(r, "groupId")
-		isUnite := getParamBool(r, "isUnite")
-		isInactive := getParamBool(r, "isInactive")
-		isGenderSensitive := getParamBool(r, "isGenderSensitive")
-		isSpreadEvenly := getParamBool(r, "isSpreadEvenly")
-		minAllowed := getParamInt(r, "minAllowed")
-		maxAllowed := getParamInt(r, "maxAllowed")
-		updateSubgroup(user, taskId, groupId, isUnite, isInactive, isGenderSensitive, isSpreadEvenly, minAllowed, maxAllowed)
-		return 201, "Successfully updated"
+		task := getParamInt(r, "task")
+		decoder := json.NewDecoder(r.Body)
+		defer r.Body.Close()
+		var pupil IdNameJson
+		decoder.Decode((&pupil))
+
+		err := upsertSubgroup(&User{tenant: "ariel"}, task, -1, pupil)
+		if err == nil {
+			return 201, "Successfully Added"
+		}
+		return 500, err.Error()
+	})
+
+	m.Delete("/api/subgroup", func(w http.ResponseWriter, r *http.Request) (int, string) {
+		task := getParamInt(r, "task")
+		id := getParamInt(r, "groupId")
+		err := deleteSubgroup(&User{tenant: "ariel"}, task, id)
+		if err == nil {
+			return 201, "Successfully Added"
+		}
+		return 500, err.Error()
 	})
 
 	m.Get("/api/pupil/prefs", func(w http.ResponseWriter, r *http.Request) {

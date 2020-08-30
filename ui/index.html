@@ -52,8 +52,26 @@
             $("#btnRemove").click(function () { removePupil("groupsPupils", "btnSaveGroupPupil") });
             $("#groupsPupils").dblclick(function () { removePupil("groupsPupils", "btnSaveGroupPupil") });
 
-            $("#pupilsInPref1").click(loadPupilPrefs)
+            $("#pupilsInPref1").click(()=>{
+                showPupilInfo();
+                loadPupilPrefs();
+            })
 
+            $("#pupilName").change(()=>setDirty("btnSavePupil"));
+            $("#pupilGender").change(()=>setDirty("btnSavePupil"));
+            $("#pupilActive").change(()=>setDirty("btnSavePupil"));
+            $("#pupilRemarks").change(()=>setDirty("btnSavePupil"));
+            $("#btnSavePupil").click(savePupil);
+            $("#btnAddPupil").click(() => {
+                $("#pupilID").val("");
+                $("#pupilName").val("");
+                $("#pupilGender").val("");
+                $("#pupilActive").prop("checked", true);
+                $("#pupilRemarks").val("");
+                clearDirty("btnSavePupil")
+            });
+            $("#deletePupil").click(deletePupil);
+            
             $("#pupilsInPref2").dblclick(function () { addPupil("pupilsInPref2", "pupilsPrefs", "btnSavePrefs") });
             $("#btnAddPref").click(function () { addPupil("pupilsInPref2", "pupilsPrefs", "btnSavePupilPref") });
             $("#btnRemovePref").click(function () { removePupil("pupilsPrefs", "btnSavePrefs") });
@@ -61,15 +79,15 @@
 
             $("#btnSavePrefs").click(savePupilPrefs);
 
-            $("#newSubgroup").click(function () {
-                $("#newSubgroupModal").show();
+            
+        
+
+            $("#subgroups").change(()=>{
+                loadSubgroupPupils()
+                showGroupInfo()
+                clearDirty("groupSave")
+
             });
-
-            $("#btnCloseNewSubgroupModel").click(function () {
-                $("#newSubgroupModal").hide();
-            })
-
-            $("#subgroups").change(loadSubgroupPupils);
             $("#btnSaveGroupPupil").click(saveGroupsPupils)
             $("#tasks").change(function () {
                 var sel = getSelectedOption("tasks");
@@ -81,13 +99,29 @@
                 }
             })
 
-            $("#isUnite").change(setDirty("groupSave"));
-            $("#isSpreadEvenly").change(setDirty("groupSave"));
-            $("#isGenderSensitive").change(setDirty("groupSave"));
-            $("#isInactive").change(setDirty("groupSave"));
-            $("#minAllowed").change(setDirty("groupSave"));
-            $("#maxAllowed").change(setDirty("groupSave"));
-            $("#groupSave").click(saveGroup);
+            $("#groupName").change(()=>setDirty("groupSave"));
+            $("#isUnite").change(()=>setDirty("groupSave"));
+            $("#isSpreadEvenly").change(()=>setDirty("groupSave"));
+            $("#isGenderSensitive").change(()=>setDirty("groupSave"));
+            $("#isInactive").change(()=>setDirty("groupSave"));
+            $("#minAllowed").change(()=>setDirty("groupSave"));
+            $("#maxAllowed").change(()=>setDirty("groupSave"));
+            $("#groupSave").click(saveSubgroup);
+
+            $("#newSubgroup").click(function () {
+                $("#groupID").val("");
+                $("#groupName").val("");
+                $("#minAllowed").val("");
+                $("#maxAllowed").val("");
+                $("#isUnite").prop("checked", false);
+                $("#isSpreadEvenly").prop("checked", false);
+                $("#isGenderSensitive").prop("checked", false);
+                $("#isInactive").prop("checked", false);
+                
+                clearDirty("groupSave")
+            });
+            $("#deleteSubgroup").click(deleteSubgroup);
+
             $("#btnDeleteTask").click(deleteTask)
             $("#btnShowResult").click(function () {
                 var sel = getSelectedOption("results");
@@ -121,7 +155,7 @@
 
             })
 
-            $("#btnSaveNewSubgroup").click(saveNewGroup);
+            
             //window.onclick = function(event) {
             //    if (event.target.class == "modal") {
             //        event.target.style.display = "none";
@@ -137,25 +171,8 @@
 </head>
 
 <body>
-
-    <div id="newSubgroupModal" class="modal">
-        <!-- Modal content -->
-        <div class="modal-content" dir="rtl">
-            <span id="btnCloseNewSubgroupModel" class="close">&times;</span>
-            <p align="center">הוספת קבוצה</p><br />
-            <form id="addSubgroup">
-                <table style="width: 100%">
-                    <tr>
-                        <td style="width: 30%">שם</td>
-                        <td style="width: 70%"><input style="width:100%" type="text" id="mdlGroupName" />
-                    </tr>
-                </table>
-                <br /><br />
-                <input type="button" id="btnSaveNewSubgroup" value="Save" />
-            </form>
-        </div>
-
-    </div>
+    <div id="message"></div>
+    
 
     <div dir="rtl">
         <input type="text" id="pwd" value=""><input type="button" id="decrypt" value="פענח" />
@@ -189,9 +206,7 @@
                 </td>
             </tr>
         </table>
-
-        <h2 align="center">העדפות תלמידים</h2>
-
+        <h2 align="center">תלמידים</h2>
         <table style="width:100% ;text-align: center">
             <tr>
                 <td style="width: 40%">
@@ -199,9 +214,52 @@
                         style="height: 15px; width: 90%; margin:4px"></text><br />
                     <select id="pupilsInPref1" size="10" style="width: 90%">
                         <optgroup label="בחר תלמיד כדי לראות/לקבוע העדפותיו">
-
                     </select>
                 </td>
+                <td style="width: 60%;vertical-align: text-top;text-align: right;">
+                    <table>
+                        <tr>
+                            <td>ID</td>
+                            <td><input type="text" id="pupilID" readonly/></td>
+                        </tr>
+                        <tr>
+                            <td>שם</td>
+                            <td><input type="text" id="pupilName" /></td>
+                        </tr>
+                        <tr>
+                            <td>מין</td>
+                            <td>
+                                <select id="pupilGender" >
+                                    <option value="" ></option>
+                                    <option value="1" >בן</option>
+                                    <option value="2" >בת</option>
+                                </select>
+                        </td>
+                        </tr>
+                        <tr>
+                            <td>הערות</td>
+                            <td><textarea rows="3" cols="60" id="pupilRemarks" ></textarea></td>
+                        </tr>
+                        <tr>
+                            <td>פעיל</td>
+                            <td><input type="checkbox" id="pupilActive" /></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>
+                                <input type="button" id="btnSavePupil" value="שמור תלמיד" disabled />
+                                <input type="button" id="btnAddPupil" value="הוסף תלמיד" />
+                                <input type="button" id="deletePupil" value="מחק תלמיד" />
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <h2 align="center">העדפות תלמידים</h2>
+        
+        <table style="width:100% ;text-align: center">
+            <tr>
                 <td style="width: 25%">
                     <input type="text" id="searchPref2" placeholder="הקלדי שם לחיפוש"
                         style="height: 15px; width: 90%; margin:4px"></text><br />
@@ -223,48 +281,72 @@
                     <select id="pupilsPrefs" size="5" style="width: 100%">
                         <optgroup label="העדפות לפי סדר">
                     </select>
+                    <input type="button" id="btnSavePrefs" value="שמור העדפות תלמיד" disabled />
                 </td>
             </tr>
-            <tr>
-                <td><input type="button" id="btnSavePrefs" value="שמור העדפות תלמיד" disabled /></td>
-            </tr>
+           
         </table>
 
 
-        <h2 align="center">קבוצה</h2>
+        <h2 align="center">קבוצות</h2>
 
 
-        <table style="width:80% ;text-align: right">
+        <table style="width:80% ;text-align: right;">
             <tr>
-                <td style="width: 10%">קבוצה</td>
-                <td style="width: 80%">
-                    <select id="subgroups" style="width: 100%">
+                
+                <td style="width: 40%">
+                    <select id="subgroups" size="14" style="width: 100%">
                         <option></option>
                     </select>
-
                 </td>
-                <td>
-                    <input type="button" id="newSubgroup" value="קבוצה חדשה..." />
+                <td style="">
+                    <table>
+                        <tr>
+                            <td>ID</td>
+                            <td><input type="text" id="groupID" readonly/></td>
+                        </tr>
+                        <tr>
+                            <td>שם</td>
+                            <td><input type="text" id="groupName" /></td>
+                        </tr>
+                        <tr>
+                            <td>קבוצת איחוד</td>
+                            <td><input type="checkbox" id="isUnite" /></td>
+                        </tr>
+                        <tr>
+                            <td>פיזור מלא</td>
+                            <td><input type="checkbox" id="isSpreadEvenly" /></td>
+                        </tr>
+                        <tr>
+                            <td>רגיש למגדר</td>
+                            <td><input type="checkbox" id="isGenderSensitive" /></td>
+                        </tr>
+                        <tr>
+                            <td>מינימום בכיתה</td>
+                            <td><input type="number" id="minAllowed" /></td>
+                        </tr>
+                        <tr>
+                            <td>מקסימום בכיתה</td>
+                            <td><input type="number" id="maxAllowed" /></td>
+                        </tr>
+                        <tr>
+                            <td>כבוי זמנית</td>
+                            <td><input type="checkbox" id="isInactive" /></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>
+                                <input type="button" id="groupSave" value="שמור קבוצה" disabled />
+                                <input type="button" id="newSubgroup" value="הוסף קבוצה" />
+                                <input type="button" id="deleteSubgroup" value="מחק קבוצה" />
+                            </td>
+                        </tr>
+                    
+                </table>
                 </td>
             </tr>
-            <tr>
-                <td />
-                <td>
-                    <input type="checkbox" id="isUnite">קבוצת איחוד</input><br />
-                    <input type="checkbox" id="isSpreadEvenly">פיזור מלא</input><br />
-                    <input type="checkbox" id="isGenderSensitive">רגיש למגדר </input><br />
-                    <input type="number" id="minAllowed">מינימום בכיתה</input><br />
-                    <input type="number" id="maxAllowed">מקסימום בכיתה</input><br />
-                    <input type="checkbox" id="isInactive">כבוי זמנית</input>
-                </td>
-                <td />
-            </tr>
-            <tr>
-                <td><input type="button" id="groupSave" value="שמור קבוצה" disabled /></td>
-            </tr>
-            <tr>
-                <td></td>
-            </tr>
+           
+            
         </table>
         <h2 align="center">שיבוץ תלמידים לקבוצה</h2>
 

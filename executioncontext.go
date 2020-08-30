@@ -31,7 +31,7 @@ type Candidate interface {
 }
 
 func (ec *ExecutionContext) Count() int {
-	return len(ec.pupils)
+	return ec.activePupilsCount
 }
 
 func (ec *ExecutionContext) GetGroup(pupil int) int {
@@ -48,15 +48,16 @@ type ExecutionContext struct {
 	resultID  int
 	Cancel    bool
 
-	groupsCount    int
-	iterationCount int
-	Constraints    []*SubGroupConstraint
-	allGroup       *SubGroupConstraint
-	maleGroup      *SubGroupConstraint
-	pupils         []*Pupil
-	dataExcel      *xlsx.File
-	taskId         int
-	file           string
+	groupsCount       int
+	iterationCount    int
+	Constraints       []*SubGroupConstraint
+	allGroup          *SubGroupConstraint
+	maleGroup         *SubGroupConstraint
+	pupils            []*Pupil
+	activePupilsCount int
+	dataExcel         *xlsx.File
+	taskId            int
+	file              string
 
 	domainValues *ValuesDomainMain
 
@@ -411,7 +412,8 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 	ec.Constraints = append(ec.Constraints, ec.allGroup)
 
 	//Init Pupils
-	pupils, e := db.Query("select id, name, gender from pupils where tenant=? and task=? order by id", user.getTenant(), taskId)
+	ec.activePupilsCount = 0
+	pupils, e := db.Query("select id, name, gender, inactive from pupils where tenant=? and task=? order by inactive, id", user.getTenant(), taskId)
 	if e != nil {
 		panic(e)
 	}
@@ -421,7 +423,8 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		var id int
 		var name string
 		var gender int
-		pupils.Scan(&id, &name, &gender)
+		var inactive int
+		pupils.Scan(&id, &name, &gender, &inactive)
 		p := new(Pupil)
 		//p.startGroup = assign
 
@@ -436,6 +439,10 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		p.name = name
 		p.id = id
 		p.isMale = (gender == 1)
+		p.inactive = (inactive == 1)
+		if !p.inactive {
+			ec.activePupilsCount++
+		}
 	}
 
 	for _, p := range ec.pupils {
@@ -443,12 +450,12 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		p.unsatisfiedGroupsCount = make([]int64, len(ec.Constraints))
 	}
 
-	ec.domainValues = NewValuesDomainMain(ec.groupsCount, len(ec.pupils), len(ec.Constraints))
+	ec.domainValues = NewValuesDomainMain(ec.groupsCount, ec.activePupilsCount, len(ec.Constraints))
 
 	initializePreferences2(ec, user, taskId)
 	InitializeGroupsMembers2(ec, user, taskId)
 
-	sort.Sort(ByGroupCount(ec.pupils))
+	sort.Sort(ByGroupCount(ec.pupils[0:ec.activePupilsCount]))
 
 	//since indexes moved, recreate
 	initializePreferences2(ec, user, taskId)
@@ -710,27 +717,31 @@ func initializePreferences2(ec *ExecutionContext, user *User, taskId int) {
 
 		pupilIndex := ec.findPupilById(pupilId)
 		pupilRefIndex := ec.findPupilById(refPupilId)
-		p := ec.pupils[pupilIndex]
-		p.prefs = append(p.prefs, pupilRefIndex)
-		p.origOrderPrefs = append(p.origOrderPrefs, pupilRefIndex)
-		if len(p.origOrderPrefs) > 3 {
-			doNoth()
-		}
+		if pupilIndex >= 0 && pupilRefIndex >= 0 {
+			p := ec.pupils[pupilIndex]
+			if !(ec.pupils[pupilRefIndex].inactive) {
+				p.prefs = append(p.prefs, pupilRefIndex)
+			}
+			p.origOrderPrefs = append(p.origOrderPrefs, pupilRefIndex)
+			if len(p.origOrderPrefs) > 3 {
+				doNoth()
+			}
 
-		// //sort highest first - needed for the algorithm
-		for i := len(p.prefs) - 2; i >= 0; i-- {
-			if p.prefs[i+1] > p.prefs[i] {
-				temp := p.prefs[i+1]
-				p.prefs[i+1] = p.prefs[i]
-				p.prefs[i] = temp
-			} else {
-				break
+			// //sort highest first - needed for the algorithm
+			for i := len(p.prefs) - 2; i >= 0; i-- {
+				if p.prefs[i+1] > p.prefs[i] {
+					temp := p.prefs[i+1]
+					p.prefs[i+1] = p.prefs[i]
+					p.prefs[i] = temp
+				} else {
+					break
+				}
 			}
 		}
 
 	}
 
-	for i, p := range ec.pupils {
+	for i, p := range ec.pupils[0:ec.activePupilsCount] {
 		for _, pref := range p.prefs {
 			ec.pupils[pref].incomingPrefs = append(ec.pupils[pref].incomingPrefs, i)
 		}
@@ -752,7 +763,7 @@ func InitializeGroupsMembers2(ec *ExecutionContext, user *User, taskId int) {
 	}
 	mailIndex := ec.findGroup(ec.maleGroup.ID())
 	allIndex := ec.findGroup(ec.allGroup.ID())
-	for _, p := range ec.pupils {
+	for _, p := range ec.pupils[0:ec.activePupilsCount] {
 		p.uniteGroups = []int{}
 		p.seperationGroups = []int{}
 		pupilIndex := ec.findPupil(p.name)
@@ -833,6 +844,8 @@ func (ec *ExecutionContext) findGroup(id int) int {
 
 var colors = []string{"green", "yellow", "red", "blue"}
 
+const INACTIVE_COLOR = "gray"
+
 func getColor(group int) string {
 	if group >= 0 && group < len(colors) {
 		return colors[group]
@@ -872,7 +885,7 @@ func (ec *ExecutionContext) printHtml(resultID int) string {
 	res.Append("</tr>\n")
 
 	var list [10][]int //todo
-	for i, p := range ec.pupils {
+	for i, p := range ec.pupils[0:ec.activePupilsCount] {
 		list[p.groupBestScore] = append(list[p.groupBestScore], i)
 	}
 
@@ -915,7 +928,7 @@ func (ec *ExecutionContext) printHtml(resultID int) string {
 	numOfSecondAndThird := 0
 	numOfThree := 0
 
-	for inx, p := range ec.pupils {
+	for inx, p := range ec.pupils[0:ec.activePupilsCount] {
 		colorName := getColor(p.groupBestScore)
 
 		//name
@@ -929,6 +942,10 @@ func (ec *ExecutionContext) printHtml(resultID int) string {
 		for i := 0; i < len(p.origOrderPrefs); i++ {
 			refP := ec.pupils[p.origOrderPrefs[i]]
 			colorPref := getColor(refP.groupBestScore)
+			if p.origOrderPrefs[i] >= ec.activePupilsCount {
+				//this is an inactive pupil
+				colorPref = INACTIVE_COLOR
+			}
 			if colorName == colorPref {
 				numOfMatch++
 				if i == 0 {

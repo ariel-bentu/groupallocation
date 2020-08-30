@@ -4,6 +4,7 @@ type Pupil struct {
 	id                     int
 	name                   string
 	isMale                 bool
+	inactive               bool
 	prefs                  []int
 	origOrderPrefs         []int
 	incomingPrefs          []int

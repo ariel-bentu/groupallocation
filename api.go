@@ -39,7 +39,9 @@ type IdNameJson struct {
 	MinAllowed        int    `json:"minAllowed"`
 	MaxAllowed        int    `json:"maxAllowed"`
 
-	IsMale bool `json:"isMale"`
+	IsMale  bool   `json:"isMale"`
+	Active  bool   `json:"active"`
+	Remarks string `json:"remarks"`
 }
 
 type IdRefIDJson struct {
@@ -435,11 +437,48 @@ func getTaskList(user *User) ([]byte, error) {
 	return json.Marshal(tasks)
 }
 
+func upsertPupil(task int, id int, pupil IdNameJson) error {
+	connect()
+	gender := 1
+	inactive := 0
+	if !pupil.IsMale {
+		gender = 2
+	}
+	if !pupil.Active {
+		inactive = 1
+	}
+
+	if id >= 0 {
+		//update
+		_, err := db.Exec("update pupils set name=?, gender=?, inactive=?, remarks=? where tenant =? and task=? and id=?",
+			pupil.Name, gender, inactive, pupil.Remarks,
+			user.getTenant(), task, id)
+		return err
+	} else {
+		r := db.QueryRow("select max(id) from pupils where tenant =? and task=?", user.getTenant(), task)
+		maxId := 0
+		if r != nil {
+			r.Scan(&maxId)
+		}
+		_, err := db.Exec("insert into pupils (tenant, task, id, name, gender, inactive, remarks) values (?,?,?,?,?,?,?)", user.getTenant(), task, maxId+1,
+			pupil.Name, gender, inactive, pupil.Remarks)
+		return err
+	}
+
+}
+
+func deletePupil(user *User, taskId int, id int) error {
+	connect()
+	_, err := db.Exec(`delete from pupils where tenant =? and task=? and id=?`,
+		user.getTenant(), taskId, id)
+	return err
+}
+
 func getPupilList2(user *User, taskId int) ([]byte, error) {
 	var pupils []IdNameJson
 
 	connect()
-	res, err := db.Query("select id, name, gender from pupils where tenant =? and task=? order by name", user.getTenant(), taskId)
+	res, err := db.Query("select id, name, gender, inactive, remarks from pupils where tenant =? and task=? order by name", user.getTenant(), taskId)
 	if err != nil {
 		panic(err)
 	}
@@ -447,12 +486,18 @@ func getPupilList2(user *User, taskId int) ([]byte, error) {
 		var id int
 		var name string
 		var gender int
-		isMale := false
-		err = res.Scan(&id, &name, &gender)
-		if gender == 1 {
-			isMale = true
+		var inactive int
+		var remarks string
+
+		err = res.Scan(&id, &name, &gender, &inactive, &remarks)
+
+		newP := IdNameJson{
+			Id:      fmt.Sprintf("%d", id),
+			Name:    name,
+			IsMale:  gender == 1,
+			Active:  inactive != 1,
+			Remarks: remarks,
 		}
-		newP := IdNameJson{Id: fmt.Sprintf("%d", id), Name: name, IsMale: isMale}
 		pupils = append(pupils, newP)
 	}
 
@@ -552,38 +597,42 @@ func getIntFromBool(val bool) int {
 	return 0
 }
 
-func createNewSubgroup(user *User, taskId int, name string) {
+func upsertSubgroup(user *User, taskId int, id int, group IdNameJson) error {
 	connect()
-	r := db.QueryRow("select max(id) from subgroups")
-	groupId := 1
-	if r != nil {
-		r.Scan(&groupId)
-		groupId++
+	groupId := id
+	sgtype := 0
 
+	if !group.IsUnite {
+		sgtype = 1
 	}
+	var err error
+	if groupId < 0 {
+		r := db.QueryRow("select max(id) from subgroups where tenant=? and task=?", user.getTenant(), taskId)
 
-	_, err := db.Exec(`insert into subgroups (tenant, task, id, name, sgtype, gendersensitive, speadevenly, inactive) values 
-				      (?, ?, ?, ?, 0, 0, 0, 0)`,
-		user.getTenant(), taskId, groupId, name)
-	if err != nil {
-		panic(err)
+		if r != nil {
+			r.Scan(&groupId)
+			groupId++
+
+		}
+
+		_, err = db.Exec(`insert into subgroups (tenant, task, id, 
+				name, sgtype, gendersensitive, speadevenly, inactive, minAllowed, maxAllowed) values 
+				      (?, ?, ?, ?, ? , ?, ?, ?, ?, ?)`,
+			user.getTenant(), taskId, groupId,
+			group.Name, sgtype, getIntFromBool(group.IsGenderSensitive), getIntFromBool(group.IsSpreadEvenly), getIntFromBool(group.IsInactive), group.MinAllowed, group.MaxAllowed)
+	} else {
+		_, err = db.Exec("update subgroups set name=?, sgtype=?, gendersensitive=?, speadevenly=?, inactive=? ,  minAllowed=?, maxAllowed=? where tenant =? and task=? and id=?",
+			group.Name, sgtype, getIntFromBool(group.IsGenderSensitive), getIntFromBool(group.IsSpreadEvenly), getIntFromBool(group.IsInactive), group.MinAllowed, group.MaxAllowed,
+			user.getTenant(), taskId, groupId)
 	}
-
+	return err
 }
-func updateSubgroup(user *User, taskId int, groupId int, isUnite bool, isInactive bool,
-	isGenderSensitive bool, isSpreadEvenly bool, minAllowed int, maxAllowed int) {
+
+func deleteSubgroup(user *User, taskId int, id int) error {
 	connect()
-	sgType := 1
-	if isUnite {
-		sgType = 0
-	}
-	affectedRows, err := db.Exec("update subgroups set sgtype=?, inactive=? , gendersensitive=?, speadevenly=?, minAllowed=?, maxAllowed=? where tenant =? and task=? and id=?",
-		sgType, getIntFromBool(isInactive), getIntFromBool(isGenderSensitive), getIntFromBool(isSpreadEvenly),
-		minAllowed, maxAllowed, user.getTenant(), taskId, groupId)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Updated subgroup, afftected rows: %d\n", affectedRows)
+	_, err := db.Exec(`delete from subgroups where tenant =? and task=? and id=?`,
+		user.getTenant(), taskId, id)
+	return err
 }
 
 func getSubGroupPupils2(user *User, taskId int, groupId int) ([]byte, error) {
