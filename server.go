@@ -337,6 +337,40 @@ func main() {
 		w.Write([]byte("</html>"))
 	})
 
+	m.Post(("/api/result"), func(w http.ResponseWriter, r *http.Request) {
+		id := getParamInt(r, "id")
+		task := getParamInt(r, "task")
+		newName := r.URL.Query().Get("resultName")
+		if id < 0 {
+			w.Write([]byte("Bad or missing result 'id'"))
+			return
+		}
+
+		err := renameResult(task, id, newName)
+		if err != nil {
+			w.Write([]byte("update: " + err.Error()))
+			return
+		}
+		w.Write([]byte("עדכון בוצע בהצלחה"))
+	})
+
+	m.Post(("/api/result/duplicate"), func(w http.ResponseWriter, r *http.Request) {
+		id := getParamInt(r, "id")
+		task := getParamInt(r, "task")
+		newName := r.URL.Query().Get("resultName")
+		if id < 0 {
+			w.Write([]byte("Bad or missing result 'id'"))
+			return
+		}
+
+		err := duplicateResult(task, id, newName)
+		if err != nil {
+			w.Write([]byte("duplicate result error: " + err.Error()))
+			return
+		}
+		w.Write([]byte("שכפול בוצע בהצלחה"))
+	})
+
 	m.Post(("/api/move-in-result"), func(w http.ResponseWriter, r *http.Request) {
 		id := getParamInt(r, "id")
 		if id < 0 {

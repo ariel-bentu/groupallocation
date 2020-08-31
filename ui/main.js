@@ -1,3 +1,43 @@
+
+
+function showResultInfo() {
+    var sel = getSelectedOption("results")
+    if (sel != undefined) {
+        $("#resultName").val(sel.text())
+    }
+}
+
+function saveResultInfo() {
+    var sel = getSelectedOption("results")
+    if (sel != undefined) {
+        let newName = $("#resultName").val()
+        $.ajax({
+            url: "/api/result?task=" + taskID + "&id=" + sel.val() + "&resultName=" + decodeURIComponent(newName),
+            type: 'POST',
+            success: function (result) {
+                showMessage("שם עודכן בהצלחה")
+                loadAvailableResults(newName)
+            }
+        });
+    }
+}
+
+function duplicateResult() {
+    var sel = getSelectedOption("results")
+    if (sel != undefined) {
+        let newName = "copy of " + sel.text()
+        let id = sel.val();
+        $.ajax({
+            url: "/api/result/duplicate?task=" + taskID + "&id=" + sel.val() + "&resultName=" + decodeURIComponent(newName),
+            type: 'POST',
+            success: function (result) {
+                showMessage("שם עודכן בהצלחה")
+                loadAvailableResults(newName)
+            }
+        });
+    }
+}
+
 function deleteTask() {
     var sel = getSelectedOption("tasks")
     if (sel != undefined) {
@@ -90,16 +130,16 @@ function addPrefToList(value, index) {
 }
 
 function swapPref(src, dest) {
-    let val = $('#prefName'+src).val();
-    if (val == "" || $('#prefName'+dest).val() == "") {
+    let val = $('#prefName' + src).val();
+    if (val == "" || $('#prefName' + dest).val() == "") {
         return
     }
     let active = $('#prefActive' + src).prop('checked');
 
-    $('#prefName'+src).val($('#prefName'+dest).val());
+    $('#prefName' + src).val($('#prefName' + dest).val());
     $('#prefActive' + src).prop('checked', $('#prefActive' + dest).prop('checked'));
 
-    $('#prefName'+dest).val(val);
+    $('#prefName' + dest).val(val);
     $('#prefActive' + dest).prop('checked', active);
 
     setDirty("btnSavePrefs");
@@ -113,8 +153,8 @@ function addNewPref() {
         let id = sel.val();
         var name = $("#pupilsInPref1 option[value='" + id + "']").text()
 
-        for (var j = 1; j<4;j++) {
-            if ($('#prefName'+j).val() == name) {
+        for (var j = 1; j < 4; j++) {
+            if ($('#prefName' + j).val() == name) {
                 showMessage("תלמיד זה נבחר כבר כהעדפה")
                 return
             }
@@ -123,10 +163,10 @@ function addNewPref() {
         let index = -1
         if ($('#prefName1').val() == "") {
             index = 1
-        } else  if ($('#prefName2').val() == "") {
-            index=2
-        } else  if ($('#prefName3').val() == "") {
-            index=3
+        } else if ($('#prefName2').val() == "") {
+            index = 2
+        } else if ($('#prefName3').val() == "") {
+            index = 3
         }
         if (index < 0) {
             showMessage("כל ההעדפות נבחרו")
@@ -135,7 +175,7 @@ function addNewPref() {
 
         $('#prefName' + index).val(name);
         $('#prefName' + index).attr('value', id);
-       
+
         setDirty("btnSavePrefs")
     }
 
@@ -161,16 +201,16 @@ function savePupilPrefs() {
     if (sel != undefined) {
         var pupilId = sel.val()
         var pupils = []
-        for (var i=1;i<4;i++) {
-            if ($("#prefName"+i).val() != "") {
+        for (var i = 1; i < 4; i++) {
+            if ($("#prefName" + i).val() != "") {
                 pupils.push({
-                     "id": pupilId, 
-                     "refId": $("#prefName"+i).attr('value'),
-                     "active": $("#prefActive"+i).prop('checked')
-                    })
+                    "id": pupilId,
+                    "refId": $("#prefName" + i).attr('value'),
+                    "active": $("#prefActive" + i).prop('checked')
+                })
             }
         }
-        
+
         var jsonStr = JSON.stringify(pupils);
 
         $.post("/api/pupil/prefs?task=" + taskID + "&pupilId=" + pupilId, jsonStr, function (json) {
@@ -217,7 +257,7 @@ function savePupil() {
         success: function (result) {
             showMessage("תלמיד נשמר בהצלחה")
             loadPupils(name);
-            
+
             clearDirty("btnSavePupil")
         }
     });
@@ -449,17 +489,28 @@ function loadTasks() {
         });
 }
 
-function loadAvailableResults() {
+function loadAvailableResults(currentName) {
+    let currentId = undefined
     $.get("/api/available-results?task=" + taskID, function (json) {
 
         emptyList("results")
         $.each(JSON.parse(json), function (i, value) {
-            $('#results').append($('<option>').text(value.runDate + value.title).attr('value', value.id));
+            if (currentName && currentName == value.title) {
+                currentId = value.id
+            }
+            let title = value.title != ""? value.title : value.runDate;
+            $('#results').append($('<option>').text(title).attr('value', value.id));
         });
 
-        selectFirst("results")
+        
     })
         .done(function () {
+            if (currentId) {
+                $("#results").val(currentId).change();
+                $("#results").val(currentId).click();
+            } else {
+                selectFirst("results")
+            }
 
         })
         .fail(function () {

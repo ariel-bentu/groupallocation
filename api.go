@@ -770,6 +770,33 @@ func getResultsList(taskId int) ([]byte, error) {
 	return json.Marshal(runResults)
 }
 
+func renameResult(task int, id int, newName string) error {
+	connect()
+	_, err := db.Exec("update taskResult set title = ? where task=? and resultId = ?", newName, task, id)
+	return err
+}
+
+func duplicateResult(task int, id int, newName string) error {
+	connect()
+	r := db.QueryRow("select max(id) from taskResult", task)
+	maxId := 0
+	if r != nil {
+		r.Scan(&maxId)
+	}
+
+	_, err := db.Exec("insert into taskResult (resultId, tenant, task, runDate, duration, foundCount, title) values ( ?,?,?,?,?,?,?)", maxId+1, 0, task, 0, 0, 0, newName)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("insert into taskResultLines (resultId, pupilId, groupId) SELECT ?, pupilId, groupId from taskResultLines where resultId = ?", maxId+1, id)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
 func movePupilInResult(resultId int, pupilId int, targetGroup int) error {
 	connect()
 	_, err := db.Exec("update taskResultLines set groupId = ? where resultId = ? and pupilId = ?", targetGroup, resultId, pupilId)

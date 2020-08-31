@@ -47,6 +47,12 @@
             $("#searchPref1").keyup(function () { searchInList("pupilsInPref1", $("#searchPref1").val()) });
             $("#searchPref2").keyup(function () { searchInList("pupilsInPref2", $("#searchPref2").val()) });
 
+            $("#results").change(showResultInfo);
+            $("#results").click(showResultInfo);
+            $("#btnSaveResultName").click(saveResultInfo);
+            $("#btnDuplicateResult").click(duplicateResult);
+
+
             $("#pupils").dblclick(function () { addPupil("pupils", "groupsPupils", "btnSaveGroupPupil") });
             $("#btnAdd").click(function () { addPupil("pupils", "groupsPupils", "btnSaveGroupPupil") });
             $("#btnRemove").click(function () { removePupil("groupsPupils", "btnSaveGroupPupil") });
@@ -153,7 +159,8 @@
                             url: "/api/delete-result?id=" + sel.val(),
                             type: 'DELETE',
                             success: function (result) {
-                                showMessage("תוצאה נמחקה")
+                                loadAvailableResults();
+                                showMessage("תוצאה נמחקה");
                             }
                         });
                     }
@@ -192,16 +199,20 @@
     <div dir="rtl">
         <input type="text" id="pwd" value=""><input type="button" id="decrypt" value="פענח" />
         <h2 align="center">שיבוצים</h2>
-        <table style="width:80% ;text-align: right">
+        <table style="width:100% ;text-align: right; vertical-align: text-top;">
             <tr>
-                <td style="width: 15%">שם השיבוץ</td>
-                <td style="width: 40%">
+                <td style="width: 40%;">שם השיבוץ</td>
+                <td style="width: 40%;">הרצה</td>
+                <td style="width: 40%;">תוצאות</td>
+            </tr>
+            <tr>
+                <td>
                     <select id="tasks" style="width: 100%">
                         <option></option>
                     </select>
-
-                <td>
                     <input type="button" id="btnDeleteTask" value="מחק שיבוץ" />
+                </td>
+                    <td>
                     <input type="button" id="btnRun" value="הרץ" /><br/>
                     limit
                     <input type="input" id="runLimit" value="20" /><br/>
@@ -212,12 +223,16 @@
 
                 </td>
                 <td>
-                    <select id="results" style="width: 100%">
+                    <select id="results"  size="5">
                         <option></option>
                     </select>
                     <input type="button" id="btnShowResult" value="הצג תוצאה" />
                     <input type="button" id="btnDeleteResult" value="מחק תוצאה" />
-
+                    <input type="button" id="btnDuplicateResult" value="שכפל תוצאה" />
+                </td>
+                <td>
+                    <input type="text" id="resultName" />
+                    <input type="button" id="btnSaveResultName" value="שמור שם" />
                 </td>
             </tr>
         </table>
