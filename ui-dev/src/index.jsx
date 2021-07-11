@@ -12,6 +12,7 @@ import { Alert } from './elems'
 import Shibutzim from './shibutzim.js'
 import PupilPrefs from './pupil-prefs'
 import Pupils from './pupils'
+import SubGroups from './sub-groups'
 import * as api from './api.js'
 import AlertDialog from './alert-dialog'
 
@@ -128,7 +129,7 @@ export default function App() {
         <PupilPrefs currentTask={currentTask} pupils={listPupils} msg={msg} setDirty={_setTabDirty} />
       </TabPanel>
       <TabPanel value={value} index={3}>
-        Item Four
+        <SubGroups currentTask={currentTask} pupils={listPupils} msg={msg} setDirty={_setTabDirty} />
       </TabPanel>
       <Snackbar open={message} autoHideDuration={6000} onClose={(event, reason) => (reason === 'clickaway') ? {} : setMessage(undefined)}>
         <Alert onClose={(event, reason) => (reason === 'clickaway') ? {} : setMessage(undefined)}

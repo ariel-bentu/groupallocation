@@ -4,6 +4,7 @@ import useStyles from "./styles.js"
 import * as api from './api'
 import { VBox, HBox, Spacer, Header, WPaper } from './elems'
 import SearchList from './list-with-search'
+import EditGroup from './edit-group'
 
 export default function SubGroups(props) {
     const classes = useStyles();
@@ -12,23 +13,21 @@ export default function SubGroups(props) {
     const [editGroup, setEditGroup] = useState(undefined);
     const [members, setMembers] = useState(undefined);
     const [editMembers, setEditMembers] = useState(undefined);
+    const [editGroupDialog, setEditGroupDialog] = useState(undefined);
+
+
 
     useEffect(() => {
         props.setDirty(editGroup !== undefined || editMembers !== undefined);
     }, [editGroup]);
 
     useEffect(() => {
-        api.loadSubGroups(props.currentTask);
+        api.loadSubGroups(props.currentTask).then(grps => setGroups(grps));
     }, [props.currentTask]);
 
-    useEffect(() => {
-        if (current) {
-            api.loadSubGroupMembers(props.currentTask, current.id);
-        }
-    }, [current]);
 
     const selectSubgroup = (id) => {
-        if (editGroup || editMembers) {
+        if (dirty()) {
             props.msg.alert({
                 title: "שינויים לא נשמרו",
                 message: "לפני החלפת קבוצה יש לשמור או לבטל שינויים",
@@ -52,38 +51,39 @@ export default function SubGroups(props) {
                 }]
             })
         } else {
-            setCurrent(props.groups.find(p => p.id === id))
+            setCurrent(groups.find(p => p.id === id))
         }
     }
 
     const actGroup = () => editGroup ? editGroup : current;
     const actMembers = () => editMembers ? editMembers : members || [];
+    const dirty = () => editMembers || editGroup;
 
-    const addPupilToSubGroup = (id) => {
+    const addPupilToSubGroup = (pupilId) => {
         if (!current)
             return
-        // let srcPrefs = actPrefs();
-        // 
-        // let newPrefs = [...srcPrefs, {
-        //     id: current.id,
-        //     refId,
-        //     active: true,
-        //     priority: srcPrefs.length
-        // }]
-        // setEditPrefs(newPrefs);
+        let srcMembers = actMembers();
+
+        let newMembers = [...srcMembers, {
+            id: current.id,
+            refId: pupilId
+        }]
+        setEditMembers(newMembers);
     }
 
-    const removePupilFromSubGroup = (index) => {
-        // let newPrefs = actPrefs().filter((v, i) => i !== index);
-        // setEditPrefs(newPrefs);
+    const removePupilFromSubGroup = (pupilId) => {
+        let newMembers = actMembers().filter(m => m.refId !== pupilId);
+        setEditMembers(newMembers);
     }
 
 
     const saveSubGroup = () => {
         api.saveSubGroup(props.currentTask, current.id, editGroup).then(() => {
             props.msg.notify("נשמר בהצלחה");
-            setGroup(editGroup);
-            setEditGroups(undefined)
+            api.loadSubGroups(props.currentTask).then(grps => {
+                setGroups(grps);
+                setEditGroup(undefined);
+            })
         })
     }
 
@@ -98,9 +98,9 @@ export default function SubGroups(props) {
     useEffect(() => {
         if (current) {
             console.log("Load members")
-            api.loadSubGroupPupils(props.currentTask, current.id).then(gr => {
-                setEditGroups(undefined);
-                setGroups(gr);
+            api.loadSubGroupMembers(props.currentTask, current.id).then(gMembers => {
+                setEditMembers(undefined);
+                setMembers(gMembers);
             });
         }
     }, [current]);
@@ -109,42 +109,99 @@ export default function SubGroups(props) {
     return (
         <div className={classes.paperContainer}>
             <Paper elevation={3} className={classes.paper}>
-                <Header>קבוצות</Header>
+                <Header>קבוצות{" (" + (groups ? groups.length : "-") + ")"}</Header>
                 <VBox>
                     <SearchList items={groups} current={current ? current.id : undefined}
                         onSelect={(id) => selectSubgroup(id)}
-                        onDoubleClick={()=>{}}
+                        onDoubleClick={() => { }}
                     />
+                    <Spacer/>
+                    <HBox>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={() => setEditGroupDialog(actGroup())}
+                        disabled={!current}
+                    >ערוך פרטי קבוצה...</Button>
+                    <Spacer/>
+                     <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={() => setEditGroupDialog({})}
+                    >קבוצה חדשה...</Button>
+                    </HBox>
                 </VBox>
             </Paper>
             {current ?
                 <WPaper>
-                    <Header>{current.name}{editMembers ? " - בעריכה" : ""}</Header>
+                    <Header>{current.name}{" (" + actMembers().length + ")"}{editMembers ? " - בעריכה" : ""}</Header>
                     <Spacer />
                     <HBox>
-                        <SearchList items={props.pupils}
-                            onSelect={() => { }}
-                            onDoubleClick={(id) => {
-                                addPupilToSubGroup(id)
-                            }}
-                        />
                         <VBox>
-                        <SearchList items={actMembers()}
-                            onSelect={() => { }}
-                            onDoubleClick={(id) => {
-                                removePupilFromSubGroup(id)
-                            }}
-                        />
+                            <SearchList items={props.pupils} genderIcon={true}
+                                onSelect={() => { }}
+                                onDoubleClick={(id) => {
+                                    addPupilToSubGroup(id)
+                                }}
+                            />
+                            דאבל-קליק להוספת תלמיד/ה לקבוצה
+                        </VBox>
+                        <VBox>
+                            <VBox style={{ maxHeight: 400, overflow: 'auto' }}>
+                                <Table style={{ width: '100%' }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell align="right">שם</TableCell>
+                                            <TableCell align="right">פעולות</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {actMembers() ? actMembers().map((p) => (
+
+                                            <TableRow>
+                                                <TableCell align="right">{(props.pupils.find(pupil => pupil.id === p.refId) || { name: "" }).name}</TableCell>
+                                                <TableCell >
+                                                    <HBox>
+                                                        <Button variant="outlined" color="primary"
+                                                            onClick={() => removePupilFromSubGroup(p.refId)}
+                                                        >מחק</Button>
+                                                    </HBox>
+                                                </TableCell>
+                                            </TableRow>
+
+                                        )) : null}
+                                    </TableBody>
+                                </Table>
+
+                            </VBox>
+                            <Spacer />
                             <HBox>
-                                <Button variant="outlined" color="primary" disabled={!editPrefs}
-                                    onClick={() => save()}>שמור</Button>
+                            
+                                <Button variant="outlined" color="primary" disabled={!dirty()}
+                                    onClick={() => {
+                                        if (editGroup)
+                                            saveSubGroup();
+                                        if (editMembers)
+                                            saveSubGroupMembers();
+                                    }}>שמור</Button>
                                 <Spacer />
-                                {editPrefs ? <Button variant="outlined" color="primary"
-                                    onClick={() => setEditPrefs(undefined)}>בטל</Button> : null}
+                                {dirty() ? <Button variant="outlined" color="primary"
+                                    onClick={() => {
+                                        setEditMembers(undefined)
+                                        setEditGroup(undefined)
+                                    }}>בטל</Button> : null}
                             </HBox>
                         </VBox>
+
+
                     </HBox>
                 </WPaper> : null}
+            <EditGroup open={editGroupDialog !== undefined} group={editGroupDialog}
+                Save={newGroup => {
+                    setEditGroupDialog(undefined)
+                }}
+                Cancel={() => setEditGroupDialog(undefined)}
+            />
         </div>
 
     );

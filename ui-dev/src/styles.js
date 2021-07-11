@@ -28,7 +28,6 @@ const useStyles = makeStyles(theme => ({
     list: {
         margin:5,
         width: '80%',
-        height: '60%',
         overflow: 'auto',
         backgroundColor:'#E1E1E1'
     },
