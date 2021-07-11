@@ -46,9 +46,10 @@ type IdNameJson struct {
 }
 
 type IdRefIDJson struct {
-	Id     string `json:"id"`
-	RefId  string `json:"refId"`
-	Active bool   `json:"active"`
+	Priority int    `json:"priority"`
+	Id       string `json:"id"`
+	RefId    string `json:"refId"`
+	Active   bool   `json:"active"`
 }
 
 type IdTitleDateJson struct {
@@ -425,7 +426,7 @@ func getTaskList(user *User) ([]byte, error) {
 	var tasks []IdNameJson
 
 	connect()
-	res, err := db.Query("select task, name from task where tenant =? order by name", user.getTenant())
+	res, err := db.Query("select task, name from task where tenant =? order by createDate DESC", user.getTenant())
 	if err != nil {
 		panic(err)
 	}
@@ -549,14 +550,16 @@ func getPupilPrefs(user *User, taskId int, pupilId int) ([]byte, error) {
 	if err != nil {
 		panic(err)
 	}
+	var prio = 0
 	for res.Next() {
 		var id int
 		var refId string
 		var inactive int
 		err = res.Scan(&id, &refId, &inactive)
 
-		newP := IdRefIDJson{Id: fmt.Sprintf("%d", id), RefId: refId, Active: inactive != 1}
+		newP := IdRefIDJson{Id: fmt.Sprintf("%d", id), RefId: refId, Active: inactive != 1, Priority: prio}
 		pupils = append(pupils, newP)
+		prio++
 	}
 
 	return json.Marshal(pupils)
@@ -582,9 +585,9 @@ func setPupilPrefs(user *User, taskId int, pupilId int, decoder *json.Decoder) e
 
 	stmt, err := tx.Prepare("insert into pupilPrefs (tenant, task, pupilId, refPupilId, priority, inactive) values (?,?,?,?,?, ?)")
 
-	for i, p := range pupils {
+	for _, p := range pupils {
 
-		_, err = stmt.Exec(user.getTenant(), taskId, pupilId, p.RefId, i, getIntFromBool(!p.Active))
+		_, err = stmt.Exec(user.getTenant(), taskId, pupilId, p.RefId, p.Priority, getIntFromBool(!p.Active))
 		if err != nil {
 			tx.Rollback()
 			stmt.Close()

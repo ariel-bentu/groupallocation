@@ -113,9 +113,9 @@ func (e *ExecutionContext) ID() string {
 	return e.id
 }
 
-func (e *ExecutionContext) GetStatusHtml() (string, string) {
+func (e *ExecutionContext) GetStatusHtml(clean bool) (string, string) {
 	if e.done {
-		return e.printHtml(e.resultID), fmt.Sprintf("%f,resultID: %d, #of found results: %d</br>%s", e.endTime.Sub(e.startTime).Seconds(), e.resultID, e.resultsCount, slice2String(e.resultsScoreHistory))
+		return e.printHtml(e.resultID, clean), fmt.Sprintf("%f,resultID: %d, #of found results: %d</br>%s", e.endTime.Sub(e.startTime).Seconds(), e.resultID, e.resultsCount, slice2String(e.resultsScoreHistory))
 	}
 	//return fmt.Sprintf("Interaction Count:%d, progress: %d", e.currentIteration), fmt.Sprintf("%f", time.Now().Sub(e.startTime).Seconds(),
 	//	e.currentIteration/e.iterationCount*100)
@@ -202,29 +202,34 @@ func getFailedGroupHTMLMessage(e *ExecutionContext, failedArray []int64) string 
 	return sb.ToString()
 }
 
-func (e *ExecutionContext) Finish() {
+func (e *ExecutionContext) Finish(persist bool) {
 	e.done = true
 	for i, p := range e.pupils {
+		if i >= e.activePupilsCount {
+			break
+		}
 		p.groupBestScore = e.bestCandidate[i]
 	}
 	e.endTime = time.Now()
 
-	connect()
-	r := db.QueryRow("select max(resultId) from taskResult")
-	maxId := 1
-	if r != nil {
-		r.Scan(&maxId)
-	}
-	maxId++
-	e.resultID = maxId
+	if persist {
+		connect()
+		r := db.QueryRow("select max(resultId) from taskResult")
+		maxId := 1
+		if r != nil {
+			r.Scan(&maxId)
+		}
+		maxId++
+		e.resultID = maxId
 
-	stmt, _ := db.Prepare("INSERT INTO taskResult (resultId, tenant, task, runDate, duration, foundCount) values (?,?,?,?,?,?)")
-	stmt.Exec(maxId, 0, e.taskId, e.endTime.Unix(), (e.endTime.Unix() - e.startTime.Unix()), e.resultsCount)
+		stmt, _ := db.Prepare("INSERT INTO taskResult (resultId, tenant, task, runDate, duration, foundCount) values (?,?,?,?,?,?)")
+		stmt.Exec(maxId, 0, e.taskId, e.endTime.Unix(), (e.endTime.Unix() - e.startTime.Unix()), e.resultsCount)
 
-	stmt, _ = db.Prepare("INSERT INTO taskResultLines (resultId, groupId, pupilId) values (?,?,?)")
+		stmt, _ = db.Prepare("INSERT INTO taskResultLines (resultId, groupId, pupilId) values (?,?,?)")
 
-	for _, p := range e.pupils {
-		stmt.Exec(maxId, p.groupBestScore, p.id)
+		for _, p := range e.pupils {
+			stmt.Exec(maxId, p.groupBestScore, p.id)
+		}
 	}
 }
 
@@ -413,7 +418,7 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 
 	//Init Pupils
 	ec.activePupilsCount = 0
-	pupils, e := db.Query("select id, name, gender, inactive from pupils where tenant=? and task=? order by inactive, id", user.getTenant(), taskId)
+	pupils, e := db.Query("select id, name, gender, inactive, remarks from pupils where tenant=? and task=? order by inactive, id", user.getTenant(), taskId)
 	if e != nil {
 		panic(e)
 	}
@@ -424,7 +429,8 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		var name string
 		var gender int
 		var inactive int
-		pupils.Scan(&id, &name, &gender, &inactive)
+		var remarks string
+		pupils.Scan(&id, &name, &gender, &inactive, &remarks)
 		p := new(Pupil)
 		//p.startGroup = assign
 
@@ -443,6 +449,7 @@ func Initialize2(user *User, taskId int) (*ExecutionContext, string) {
 		if !p.inactive {
 			ec.activePupilsCount++
 		}
+		p.remarks = remarks
 	}
 
 	for _, p := range ec.pupils {
@@ -853,7 +860,7 @@ func getColor(group int) string {
 	return ""
 }
 
-func (ec *ExecutionContext) printHtml(resultID int) string {
+func (ec *ExecutionContext) printHtml(resultID int, clean bool) string {
 	res := NewStringBuffer()
 	res.Clear()
 
@@ -910,169 +917,175 @@ func (ec *ExecutionContext) printHtml(resultID int) string {
 		res.Append("</tr>")
 	}
 	res.Append("</table></br></br>\n\n")
+	if !clean {
 
-	//Print list of Pupils and their preferences
-	res.Append("<H2> מפת העדפות </H2></br>\n")
-	res.AppendFormat("<P>Sum of Matching Pref: %d, Sum of Matching Firsts: %d<P></br>\n", ec.bestSumOfSatisfiedPrefs, ec.bestSumOfSatisfiedFirstPrefs)
-	res.Append("<table><tr><th>#</th><th>שם</th><th>בחירה 1</th><th>בחירה 2</th><th>בחירה 3</th></tr>\n")
+		//Print list of Pupils and their preferences
+		res.Append("<H2> מפת העדפות </H2></br>\n")
+		//res.AppendFormat("<P>Sum of Matching Pref: %d, Sum of Matching Firsts: %d<P></br>\n", ec.bestSumOfSatisfiedPrefs, ec.bestSumOfSatisfiedFirstPrefs)
+		res.Append("<table border='1'><tr><th>#</th><th>שם</th><th>בחירה 1</th><th>בחירה 2</th><th>בחירה 3</th><th>הערות</th></tr>\n")
 
-	numOfAll := 0
-	numOfNone := 0
-	numOfOneLess := 0
-	numOfTwoLess := 0
-	numOfFirst := 0
-	numOfSecond := 0
-	numOfThird := 0
-	numOfFirstAndSecond := 0
-	numOfFirstAndThird := 0
-	numOfSecondAndThird := 0
-	numOfThree := 0
+		numOfAll := 0
+		numOfNone := 0
+		numOfOneLess := 0
+		numOfTwoLess := 0
+		numOfFirst := 0
+		numOfSecond := 0
+		numOfThird := 0
+		numOfFirstAndSecond := 0
+		numOfFirstAndThird := 0
+		numOfSecondAndThird := 0
+		numOfThree := 0
 
-	for inx, p := range ec.pupils[0:ec.activePupilsCount] {
-		colorName := getColor(p.groupBestScore)
+		for inx, p := range ec.pupils[0:ec.activePupilsCount] {
+			colorName := getColor(p.groupBestScore)
 
-		//name
-		res.Append(fmt.Sprintf("<tr><td>%d</td><td bgcolor=%s name=\"encryptedCell\">%s</td>", inx+1, colorName, p.name))
-		//preferences
-		numOfMatch := 0
-		got1 := false //len(p.origOrderPrefs) > 0 && p.groupBestScore == ec.pupils[p.origOrderPrefs[0]].groupBestScore
-		got2 := false //len(p.origOrderPrefs) > 1 && p.groupBestScore == ec.pupils[p.origOrderPrefs[1]].groupBestScore
-		got3 := false //len(p.origOrderPrefs) > 2 && p.groupBestScore == ec.pupils[p.origOrderPrefs[2]].groupBestScore
+			//name
+			res.Append(fmt.Sprintf("<tr><td>%d</td><td bgcolor=%s name=\"encryptedCell\">%s</td>", inx+1, colorName, p.name))
+			//preferences
+			numOfMatch := 0
+			got1 := false //len(p.origOrderPrefs) > 0 && p.groupBestScore == ec.pupils[p.origOrderPrefs[0]].groupBestScore
+			got2 := false //len(p.origOrderPrefs) > 1 && p.groupBestScore == ec.pupils[p.origOrderPrefs[1]].groupBestScore
+			got3 := false //len(p.origOrderPrefs) > 2 && p.groupBestScore == ec.pupils[p.origOrderPrefs[2]].groupBestScore
 
-		for i := 0; i < len(p.origOrderPrefs); i++ {
-			refP := ec.pupils[p.origOrderPrefs[i]]
-			colorPref := getColor(refP.groupBestScore)
-			if p.origOrderPrefs[i] >= ec.activePupilsCount {
-				//this is an inactive pupil
-				colorPref = INACTIVE_COLOR
-			}
-			if colorName == colorPref {
-				numOfMatch++
-				if i == 0 {
-					got1 = true
-				} else if i == 1 {
-					got2 = true
-				} else if i == 2 {
-					got3 = true
+			for i := 0; i < len(p.origOrderPrefs); i++ {
+				refP := ec.pupils[p.origOrderPrefs[i]]
+				colorPref := getColor(refP.groupBestScore)
+				if p.origOrderPrefs[i] >= ec.activePupilsCount {
+					//this is an inactive pupil
+					colorPref = INACTIVE_COLOR
 				}
+				if colorName == colorPref {
+					numOfMatch++
+					if i == 0 {
+						got1 = true
+					} else if i == 1 {
+						got2 = true
+					} else if i == 2 {
+						got3 = true
+					}
+				}
+
+				res.Append(fmt.Sprintf("<td bgcolor=\"%s\" name=\"encryptedCell\">%s</td>", colorPref, refP.name))
+
 			}
 
-			res.Append(fmt.Sprintf("<td bgcolor=\"%s\" name=\"encryptedCell\">%s</td>", colorPref, refP.name))
-
-		}
-
-		if numOfMatch == len(p.prefs) {
-			numOfAll++
-		} else if numOfMatch+1 == len(p.prefs) {
-			numOfOneLess++
-		} else if numOfMatch+2 == len(p.prefs) {
-			numOfTwoLess++
-		}
-
-		if got1 && got2 && got3 {
-			numOfThree++
-		} else if got1 && !got2 && !got3 {
-			numOfFirst++
-		} else if !got1 && got2 && !got3 {
-			numOfSecond++
-		} else if !got1 && !got2 && got3 {
-			numOfThird++
-		} else if got1 && got3 {
-			numOfFirstAndThird++
-		} else if got1 && got2 {
-			numOfFirstAndSecond++
-		} else if got2 && got3 {
-			numOfSecondAndThird++
-		} else if !got1 && !got2 && !got3 {
-			numOfNone++
-		}
-
-		for i := len(p.origOrderPrefs); i < NUM_OF_PREF; i++ {
-			res.Append("<td>אין</td>")
-		}
-		if !got1 && !got2 && got3 {
-			res.Append(fmt.Sprintf("<td bgcolor=\"red\" >רק שלישית</td>"))
-		}
-		if len(p.origOrderPrefs) > 0 && numOfMatch == 0 {
-			res.Append(fmt.Sprintf("<td bgcolor=\"red\" >לא קיבל אף עדיפות</td>"))
-		}
-		res.Append("</tr>\n")
-
-	}
-	res.Append("</table></br>\n")
-	res.AppendFormat("Num of Pupil got all pref: %d, one less: %d, two less: %d</br>\n", numOfAll, numOfOneLess, numOfTwoLess)
-	res.AppendFormat("1:%d, 2:%d, 3:%d\n</br>1+2:%d, 1+3:%d, 2+3:%d\n</br>all3:%d, none:%d\n",
-		numOfFirst, numOfSecond, numOfThird, numOfFirstAndSecond, numOfFirstAndThird, numOfSecondAndThird, numOfThree, numOfNone)
-
-	//groups
-	res.Append("<h1>קבוצות</h1></br>\n")
-
-	res.Append("<table border=\"1\"><tr><th>#</th><th>שם</th><th>סוג</th><th  width='35%'>חברי הקבוצה</th>")
-	for i := 0; i < ec.groupsCount; i++ {
-		colorName := getColor(i)
-		res.AppendFormat("<th bgcolor=\"%s\">כיתה %d (מס' בנים) (מספר בנות)</th>", colorName, i+1)
-	}
-	res.Append("</tr>\n")
-
-	for _, c := range ec.Constraints {
-		groupType := "איחוד"
-		if !c.IsUnite {
-			groupType = "פירוד"
-			if c.speadToAll {
-				groupType = "פירוד מלא"
+			if numOfMatch == len(p.prefs) {
+				numOfAll++
+			} else if numOfMatch+1 == len(p.prefs) {
+				numOfOneLess++
+			} else if numOfMatch+2 == len(p.prefs) {
+				numOfTwoLess++
 			}
-		}
-		members := ""
-		for _, m := range c.members {
-			color := getColor(ec.pupils[m].groupBestScore)
-			gender := "&#9792;"
-			if ec.pupils[m].IsMale() {
-				gender = "&#9794;"
-			}
-			members += fmt.Sprintf("<span style=\"background-color: %s\">%s %s</span>, ", color, ec.pupils[m].name, gender)
-		}
 
-		res.AppendFormat("<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td>", c.ID(), c.Description(), groupType, members)
+			if got1 && got2 && got3 {
+				numOfThree++
+			} else if got1 && !got2 && !got3 {
+				numOfFirst++
+			} else if !got1 && got2 && !got3 {
+				numOfSecond++
+			} else if !got1 && !got2 && got3 {
+				numOfThird++
+			} else if got1 && got3 {
+				numOfFirstAndThird++
+			} else if got1 && got2 {
+				numOfFirstAndSecond++
+			} else if got2 && got3 {
+				numOfSecondAndThird++
+			} else if !got1 && !got2 && !got3 {
+				numOfNone++
+			}
+			for i := len(p.origOrderPrefs); i < NUM_OF_PREF; i++ {
+				res.Append("<td>ללא העדפות</td>")
+			}
+
+			//הערות
+			res.Append("<td>")
+			res.Append(p.remarks)
+			if !got1 && !got2 && got3 {
+				res.Append(fmt.Sprintf("<p style='background-color:red;'>רק שלישית</p>,"))
+			}
+			if len(p.origOrderPrefs) > 0 && numOfMatch == 0 {
+				res.Append(fmt.Sprintf("<p style='background-color:red;'>לא קיבל אף עדיפות</p>"))
+			}
+			res.Append("</td>")
+			res.Append("</tr>\n")
+
+		}
+		res.Append("</table></br>\n")
+		res.AppendFormat("Num of Pupil got all pref: %d, one less: %d, two less: %d</br>\n", numOfAll, numOfOneLess, numOfTwoLess)
+		res.AppendFormat("1:%d, 2:%d, 3:%d\n</br>1+2:%d, 1+3:%d, 2+3:%d\n</br>all3:%d, none:%d\n",
+			numOfFirst, numOfSecond, numOfThird, numOfFirstAndSecond, numOfFirstAndThird, numOfSecondAndThird, numOfThree, numOfNone)
+
+		//groups
+		res.Append("<h1>קבוצות</h1></br>\n")
+
+		res.Append("<table border=\"1\"><tr><th>#</th><th>שם</th><th>סוג</th><th  width='35%'>חברי הקבוצה</th>")
 		for i := 0; i < ec.groupsCount; i++ {
-
-			res.AppendFormat("<td>%d - (%d)(%d)</td>", c.countForGroup[i], c.boysForGroup[i], c.countForGroup[i]-c.boysForGroup[i])
+			colorName := getColor(i)
+			res.AppendFormat("<th bgcolor=\"%s\">כיתה %d (מס' בנים) (מספר בנות)</th>", colorName, i+1)
 		}
 		res.Append("</tr>\n")
-	}
 
-	res.Append("</table></br>\n")
-
-	//list of Conflicts
-
-	res.Append("<h1>Conflicts</h1></br>\n")
-
-	for _, c := range ec.Constraints {
-		if msg := c.Message(ec); msg != "" {
-			res.AppendFormat("* %s </br>\n", msg)
-		}
-	}
-
-	for _, p := range ec.pupils {
-		count := 0
-		for i := 0; i < len(p.prefs); i++ {
-			if p.groupBestScore == ec.pupils[p.prefs[i]].groupBestScore {
-				count++
-			}
-		}
-		if count == 0 && len(p.prefs) > 0 {
-			res.AppendFormat("%s קיבל/ה 0 מתוך %d העדפות</br>\n", p.name, len(p.prefs))
-		}
-	}
-	/*
-		for _, cc := range ec.ConstraintsAll {
-			c, ok := cc.(*PrefConstraint)
-			if ok {
-				if msg := c.Message(ec); msg != "" {
-					res.AppendFormat("* %s </br>\n", msg)
+		for _, c := range ec.Constraints {
+			groupType := "איחוד"
+			if !c.IsUnite {
+				groupType = "פירוד"
+				if c.speadToAll {
+					groupType = "פירוד מלא"
 				}
 			}
+			members := ""
+			for _, m := range c.members {
+				color := getColor(ec.pupils[m].groupBestScore)
+				gender := "&#9792;"
+				if ec.pupils[m].IsMale() {
+					gender = "&#9794;"
+				}
+				members += fmt.Sprintf("<span style=\"background-color: %s\">%s %s</span>, ", color, ec.pupils[m].name, gender)
+			}
+
+			res.AppendFormat("<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td>", c.ID(), c.Description(), groupType, members)
+			for i := 0; i < ec.groupsCount; i++ {
+
+				res.AppendFormat("<td>%d - (%d)(%d)</td>", c.countForGroup[i], c.boysForGroup[i], c.countForGroup[i]-c.boysForGroup[i])
+			}
+			res.Append("</tr>\n")
 		}
-	*/
+
+		res.Append("</table></br>\n")
+
+		//list of Conflicts
+
+		res.Append("<h1>Conflicts</h1></br>\n")
+
+		for _, c := range ec.Constraints {
+			if msg := c.Message(ec); msg != "" {
+				res.AppendFormat("* %s </br>\n", msg)
+			}
+		}
+
+		for _, p := range ec.pupils {
+			count := 0
+			for i := 0; i < len(p.prefs); i++ {
+				if p.groupBestScore == ec.pupils[p.prefs[i]].groupBestScore {
+					count++
+				}
+			}
+			if count == 0 && len(p.prefs) > 0 {
+				res.AppendFormat("%s קיבל/ה 0 מתוך %d העדפות</br>\n", p.name, len(p.prefs))
+			}
+		}
+		/*
+			for _, cc := range ec.ConstraintsAll {
+				c, ok := cc.(*PrefConstraint)
+				if ok {
+					if msg := c.Message(ec); msg != "" {
+						res.AppendFormat("* %s </br>\n", msg)
+					}
+				}
+			}
+		*/
+	}
 	res.Append("</body>")
 
 	return res.ToString()

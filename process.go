@@ -48,7 +48,7 @@ func bt(ec *ExecutionContext, c []int) int {
 	}
 
 	if time.Now().Sub(ec.startTime).Seconds() > float64(ec.timeLimit) && ec.resultsCount > 0 {
-		ec.Finish()
+		ec.Finish(true)
 		return -1
 	}
 

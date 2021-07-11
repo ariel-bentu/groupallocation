@@ -9,7 +9,6 @@
             "program": "${workspaceRoot}"
         },
         {
-            "debugServer": 4711,
             "name": "Launch",
             "type": "go",
             "request": "launch",
@@ -18,7 +17,7 @@
             "port": 2345,
             "host": "127.0.0.1",
             "program": "${fileDirname}",
-            "env": {"GA_DBPATH":"/Users/i022021/go/groups.db"},
+            "env": {"GA_DBPATH":"/Users/i022021/dev/private/groupallocation/groups1.db"},
             "args": [],
             "showLog": true,
             "trace": "verbose"

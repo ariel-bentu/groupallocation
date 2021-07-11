@@ -144,13 +144,11 @@
             $("#deleteSubgroup").click(deleteSubgroup);
 
             $("#btnDeleteTask").click(deleteTask)
-            $("#btnShowResult").click(function () {
-                var sel = getSelectedOption("results");
-                if (sel != undefined) {
-                    let resultID = sel.val();
-                    window.open("/results?task=" + taskID + "&id=" + resultID);
-                }
-            })
+            $("#btnShowResult").click(()=>showResults(false));
+            $("#btnShowCleanResult").click(()=>showResults(true));
+                
+           
+            
             $("#btnDeleteResult").click(function () {
                 var sel = getSelectedOption("results");
                 if (sel != undefined) {
@@ -227,6 +225,7 @@
                         <option></option>
                     </select>
                     <input type="button" id="btnShowResult" value="הצג תוצאה" />
+                    <input type="button" id="btnShowCleanResult" value="הצג תוצאה - נקי" />
                     <input type="button" id="btnDeleteResult" value="מחק תוצאה" />
                     <input type="button" id="btnDuplicateResult" value="שכפל תוצאה" />
                 </td>

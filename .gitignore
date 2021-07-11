@@ -3,3 +3,7 @@ debug
 groupallocation
 *.db
 .DS_Store
+
+/ui-dev/node_modules
+/ui-dev/build
+/ui-dev/public

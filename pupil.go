@@ -13,6 +13,7 @@ type Pupil struct {
 	groupsCount            int
 	unsatisfiedPrefsCount  int64
 	unsatisfiedGroupsCount []int64
+	remarks                string
 
 	prefInactive     bool
 	uniteGroups      []int

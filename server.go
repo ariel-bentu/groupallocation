@@ -263,6 +263,7 @@ func main() {
 		}
 
 		go RunBackTrack(ec)
+		//go runSA(ec)
 		w.Write([]byte(`<html><body>Execution started.to check status, click <a href="/status?e=` + ec.ID() + `" >here</a></br>`))
 		if len(err) > 0 {
 			w.Write([]byte("Warnings: </br>" + strings.Replace(err, "\n", "<br/>\n", -1)))
@@ -305,7 +306,7 @@ func main() {
 						
 						<h1>Execution status</h1>  <a href="/status?e=` + ec.id + `" >Refresh</a><br>
 						סיסמת הצפנה<input type="text" id="pwd" value=""><input type="button" onClick= "decryptNames()" id="decrypt" value="פענח" /><br/>`))
-		res, t := ec.GetStatusHtml()
+		res, t := ec.GetStatusHtml(false)
 		w.Write([]byte("time(sec):" + t))
 		w.Write([]byte(res))
 		w.Write([]byte("</body></html>"))
@@ -324,6 +325,8 @@ func main() {
 			return
 		}
 
+		clean := getParamBool(r, "clean")
+
 		var ec *ExecutionContext
 
 		ec, _ = Initialize2(user, taskId)
@@ -332,7 +335,7 @@ func main() {
 		//todo decrypt names
 		w.Header().Add("content-type", "text/html;charset=utf-8")
 		w.Write([]byte("<html dir=\"rtl\">"))
-		res, _ := ec.GetStatusHtml()
+		res, _ := ec.GetStatusHtml(clean)
 		w.Write([]byte(res))
 		w.Write([]byte("</html>"))
 	})

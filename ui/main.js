@@ -135,12 +135,15 @@ function swapPref(src, dest) {
         return
     }
     let active = $('#prefActive' + src).prop('checked');
+    let refId = $('#prefName' + src).attr('value');
 
     $('#prefName' + src).val($('#prefName' + dest).val());
     $('#prefActive' + src).prop('checked', $('#prefActive' + dest).prop('checked'));
+    $('#prefName' + src).attr('value', $('#prefName' + dest).attr('value'))
 
     $('#prefName' + dest).val(val);
     $('#prefActive' + dest).prop('checked', active);
+    $('#prefName' + src).attr('value', refId);
 
     setDirty("btnSavePrefs");
 }
@@ -204,6 +207,7 @@ function savePupilPrefs() {
         for (var i = 1; i < 4; i++) {
             if ($("#prefName" + i).val() != "") {
                 pupils.push({
+                    "priority": i-1,
                     "id": pupilId,
                     "refId": $("#prefName" + i).attr('value'),
                     "active": $("#prefActive" + i).prop('checked')
@@ -282,6 +286,15 @@ function deletePupil() {
     }
 }
 
+function showResults(clean) {
+    var sel = getSelectedOption("results");
+    let cleanStr = clean? "&clean=true":"";
+    if (sel != undefined) {
+        let resultID = sel.val();
+        window.open("/results?task=" + taskID + "&id=" + resultID + cleanStr);
+    }
+}
+
 function deleteSubgroup() {
     var sel = getSelectedOption("subgroups");
     if (sel != undefined) {
@@ -301,8 +314,8 @@ function deleteSubgroup() {
     }
 }
 function saveSubgroup() {
-    var sel = getSelectedOption("subgroups");
-    if (sel != undefined) {
+    //var sel = getSelectedOption("subgroups");
+    //if (sel != undefined) {
         var ID = $("#groupID").val()
         var name = $("#groupName").val()
         var isUnite = $("#isUnite").prop('checked');
@@ -333,7 +346,7 @@ function saveSubgroup() {
                 $("#saveGroup").prop("disable", true)
             }
         });
-    }
+    //}
 }
 
 
