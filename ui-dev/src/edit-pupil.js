@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 
 import {
     Dialog, DialogTitle, DialogContent,
-    DialogActions, Button,
+    DialogActions, 
     Slide, TextField
 } from '@material-ui/core';
 
-import { VBox, LabeledCheckBox } from './elems';
+import { VBox, LabeledCheckBox, GButton } from './elems';
 
 const Transition = React.forwardRef(function Transition(props, ref) {
     return <Slide direction="up" ref={ref} {...props} />;
@@ -76,12 +76,8 @@ export default function EditPupil(props) {
 
             </DialogContent>
             <DialogActions>
-                <Button onClick={props.Cancel} color="primary">
-                    בטל
-                </Button>
-                <Button onClick={() => props.Save(editPupil)} color="primary">
-                    שמור
-                </Button>
+                <GButton onClick={props.Cancel} label="בטל" />
+                <GButton onClick={() => props.Save(editPupil)} label="שמור"/>
             </DialogActions>
         </Dialog> : null)
 }

@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { List, ListItem, ListItemText, Paper, Button } from '@material-ui/core';
+import { List, ListItem, ListItemText, Paper, TextField } from '@material-ui/core';
 import useStyles from "./styles.js"
 import * as api from './api'
 import { EditResults } from './edit-result';
-import { VBox, HBox, Spacer, Header } from './elems'
+import { VBox, HBox, Spacer, Header, GButton } from './elems'
 
 function Shibutzim(props) {
   const classes = useStyles();
   const [results, setResults] = useState([]);
   const [currentResult, setCurrentResult] = useState("");
   const [editResults, setEditResults] = useState(false);
+  const [timeLimit, setTimeLimit] = useState(20);
+  const [graceLevel, setGraceLevel] = useState(0);
 
   const loadResults = async () => {
     return api.loadResults(props.currentTask).then(results => {
@@ -33,12 +35,12 @@ function Shibutzim(props) {
             {props.items ? props.items.map((item) => (
               <ListItem className={classes.listItem}
                 button selected={props.currentTask === item.id} onClick={() => props.onChangeTask(item.id)}>
-                <ListItemText primary={item.name} />
+                <ListItemText className={classes.listItemText} primary={item.name} />
               </ListItem>
             )) : null}
           </List>
           <Spacer />
-          <input type="button" id="btnDeleteTask" value="מחק שיבוץ" />
+          <GButton label="מחק שיבוץ" onClick={() => alert("todo")} />
         </VBox>
       </Paper>
 
@@ -48,24 +50,16 @@ function Shibutzim(props) {
         <Header>הרצה</Header>
         <VBox>
           <Spacer />
-          limit
-          <input type="input" id="runLimit" value="20" /><br />
-          grace-level
-          <input type="input" id="graceLevel" value="0" /><br />
-          sensitive-to-only-last
-          <input type="input" id="sensitiveToOnlyLast" value="0" />
+          <TextField label="מגבלת זמן" value={timeLimit} onChange={(e) => setTimeLimit(e.currentTarget.value)} />
           <Spacer />
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => {
-              let limit = 20 //$("#runLimit").val()
-              let graceLevel = 0 //$("#graceLevel").val()
-              let sensitiveToOnlyLast = 0 //$("#sensitiveToOnlyLast").val()
-              window.open("/run?task=" + props.currentTask + "&limit=" + limit + "&graceLevel=" + graceLevel + "&sensitiveToOnlyLast=" + sensitiveToOnlyLast);
-            }
-            }
-          >הרץ...</Button>
+          <TextField label="רגישות" value={graceLevel} onChange={(e) => setGraceLevel(e.currentTarget.value)} />
+          <Spacer />
+          <GButton label="הרץ..." onClick={() => {
+            let limit = timeLimit
+            let graceLevel = graceLevel
+            let sensitiveToOnlyLast = 0 ;
+            window.open("/run?task=" + props.currentTask + "&limit=" + limit + "&graceLevel=" + graceLevel + "&sensitiveToOnlyLast=" + sensitiveToOnlyLast);
+          }} />
         </VBox>
       </Paper>
 
@@ -77,25 +71,19 @@ function Shibutzim(props) {
           <List className={classes.list} style={{ height: 250 }}>
             {results.map((item) => (
               <ListItem button className={classes.listItem} selected={currentResult === item.id} onClick={() => setCurrentResult(item.id)}>
-                <ListItemText primary={item.title !== "" ? item.title : item.runDate} />
+                <ListItemText className={classes.listItemText} primary={item.title !== "" ? item.title : item.runDate} />
               </ListItem>
             ))}
           </List>
           <Spacer />
           <HBox>
-            <input type="button" id="btnShowResult" value="הצג תוצאה" />
-            <input type="button" id="btnShowCleanResult" value="הצג תוצאה - נקי" />
-            <input type="button" id="btnDeleteResult" value="מחק תוצאה" />
-            <input type="button" id="btnDuplicateResult" value="שכפל תוצאה" />
-
+            <GButton label="שנה שם..." onClick={() => setEditResults(true)} disabled={currentResult === ""} />
+            <GButton label="הצג תוצאה" disabled={!currentResult} onClick={() => alert("todo")} />
+            <GButton label="הצג תוצאה - נקי" disabled={!currentResult} onClick={() => alert("todo")} />
+            <GButton label="מחק תוצאה" disabled={!currentResult} onClick={() => alert("todo")} />
+            <GButton label="שכפל תוצאה" disabled={!currentResult} onClick={() => alert("todo")} />
           </HBox>
           <HBox>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={() => setEditResults(true)}
-              disabled={currentResult === ""}
-            >ערוך...</Button>
             <EditResults
               open={editResults}
               Name={currentResult !== "" ? results.find(r => r.id === currentResult).title : ""}

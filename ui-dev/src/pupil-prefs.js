@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {  Button, FormControlLabel, Checkbox, Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
+import { FormControlLabel, Checkbox, Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
 import useStyles from "./styles.js"
 import * as api from './api'
-import { VBox, HBox, Spacer, Header, ROField, Paper1, Paper2 } from './elems'
+import { VBox, HBox, Spacer, Header, ROField, Paper1, Paper2, GButton } from './elems'
 import SearchList from './list-with-search'
 import EditPupil from './edit-pupil'
 
@@ -70,7 +70,7 @@ export default function PupilPref(props) {
             return;
         }
 
-        if (srcPrefs.find(p=>p.refId === refId)) {
+        if (srcPrefs.find(p => p.refId === refId)) {
             props.msg.notify("תלמיד זה כבר נמצא כהעדפה")
             return
         }
@@ -123,10 +123,9 @@ export default function PupilPref(props) {
                     style={{ width: '80%', height: '85%' }}
 
                     onSelect={(id) => selectPupil(id)}
-                    onDoubleClick={() =>{}}
+                    onDoubleClick={() => { }}
                 />
-                <Button variant="outlined" color="primary" 
-                                onClick={() => setEditPupilDialog({})}>הוסף תלמיד...</Button>
+                <GButton label="הוסף תלמיד..." onClick={() => setEditPupilDialog({})} />
 
             </Paper1>
             {current ?
@@ -149,19 +148,17 @@ export default function PupilPref(props) {
                         <ROField label={"הערות"} value={current.remarks} />
                         <Spacer />
                         <HBox>
-                            <Button variant="outlined" color="primary" onClick={() => { }}>מחק תלמיד</Button>
-                            <Button variant="outlined" color="primary" onClick={() => {
-                                setEditPupilDialog(current)
-                             }}>ערוך תלמיד...</Button>
+                            <GButton label="מחק תלמיד" onClick={() => { alert("todo") }} />
+                            <GButton label="ערוך תלמיד..." onClick={() => setEditPupilDialog(current)} />
                         </HBox>
                     </VBox>
                 </Paper1> : null}
-           
+
             {current ? <Paper2 width='45%' >
                 <Header>העדפות של {current.name}{editPrefs ? " - בעריכה" : ""}</Header>
                 <Spacer />
                 <HBox  >
-                    <SearchList items={props.pupils.filter(p => p.id !== current.id)} genderIcon={true} 
+                    <SearchList items={props.pupils.filter(p => p.id !== current.id)} genderIcon={true}
                         style={{ width: '40%' }}
                         onSelect={() => { }}
                         onDoubleClick={(id) => {
@@ -169,7 +166,7 @@ export default function PupilPref(props) {
                         }}
                         instruction={"דאבל-קליק להוספת העדפה"}
                     />
-                    <VBox style={{ width: '60%'}}>
+                    <VBox style={{ width: '60%' }}>
                         <Table>
                             <TableHead>
                                 <TableRow>
@@ -194,15 +191,9 @@ export default function PupilPref(props) {
                                         </TableCell>
                                         <TableCell >
                                             <HBox>
-                                                <Button variant="outlined" color="primary"
-                                                    onClick={() => removePref(index)}
-                                                >מחק</Button>
-                                                {index > 0 ? <Button variant="outlined" color="primary"
-                                                    onClick={() => swapPref(index, index - 1)}
-                                                >&uarr;</Button> : null}
-                                                {index < prefs.length - 1 ? <Button variant="outlined" color="primary"
-                                                    onClick={() => swapPref(index, index + 1)}
-                                                >&darr;</Button> : null}
+                                                <GButton label="מחק" onClick={() => removePref(index)} />
+                                                {index > 0 ? <GButton label="&uarr;" onClick={() => swapPref(index, index - 1)} /> : null}
+                                                {index < prefs.length - 1 ? <GButton label="&darr;" onClick={() => swapPref(index, index + 1)} /> : null}
                                             </HBox>
                                         </TableCell>
                                     </TableRow>
@@ -211,11 +202,9 @@ export default function PupilPref(props) {
                             </TableBody>
                         </Table>
                         <HBox>
-                            <Button variant="outlined" color="primary" disabled={!editPrefs}
-                                onClick={() => save()}>שמור</Button>
+                            <GButton label="שמור" disabled={!editPrefs} onClick={() => save()} />
                             <Spacer />
-                            {editPrefs ? <Button variant="outlined" color="primary"
-                                onClick={() => setEditPrefs(undefined)}>בטל</Button> : null}
+                            {editPrefs ? <GButton label="בטל" onClick={() => setEditPrefs(undefined)} /> : null}
                         </HBox>
                     </VBox>
                 </HBox>

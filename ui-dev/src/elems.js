@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, TextField, Paper, FormControlLabel, Checkbox } from '@material-ui/core';
+import { Box, TextField, Paper, FormControlLabel, Checkbox, Button } from '@material-ui/core';
 import MyAlert from '@material-ui/lab/Alert';
 
 
@@ -20,13 +20,17 @@ export function HBox(props) {
 export function Spacer(props) {
     return <dir style={{ width: props.width ? props.width : 5 }} />
 }
+export function GButton(props) {
+    return <Button variant="outlined" color="primary" style={{margin:3}} {...props}>{props.label}</Button>
+}
+
 export function Text(props) {
     return <dir style={{ fontSize: 12 }} >{props.children}</dir>
 }
 
 
 export function Paper1(props) {
-    return <Paper elevation={3} style={{ width: props.width ? props.width: '27%', height: '80%', ...props.style }} {...props}>{props.children}</Paper>
+    return <Paper elevation={3} style={{ width: props.width ? props.width : '27%', height: '80%', ...props.style }} {...props}>{props.children}</Paper>
 }
 
 export function Paper2(props) {

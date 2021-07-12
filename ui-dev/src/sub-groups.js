@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {   Button,  Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
+import { Button, Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
 import useStyles from "./styles.js"
 import * as api from './api'
-import { VBox, HBox, Spacer, Header, Paper1, Paper2 } from './elems'
+import { VBox, HBox, Spacer, Header, Paper1, Paper2, GButton } from './elems'
 import SearchList from './list-with-search'
 import EditGroup from './edit-group'
 
@@ -62,8 +62,8 @@ export default function SubGroups(props) {
     const addPupilToSubGroup = (pupilId) => {
         if (!current)
             return
-        
-        if (actMembers().find(p=>p.refId === pupilId)) {
+
+        if (actMembers().find(p => p.refId === pupilId)) {
             props.msg.notify("תלמיד זה כבר חבר בקבוצה זו")
             return
         }
@@ -117,24 +117,15 @@ export default function SubGroups(props) {
                 <Header>קבוצות{" (" + (groups ? groups.length : "-") + ")"}</Header>
                 <VBox>
                     <SearchList items={groups} current={current ? current.id : undefined}
-                        style={{height:'60vh', width:'90%'}}
+                        style={{ height: '60vh', width: '90%' }}
                         onSelect={(id) => selectSubgroup(id)}
                         onDoubleClick={() => { }}
                     />
-                    <Spacer/>
+                    <Spacer />
                     <HBox>
-                    <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => setEditGroupDialog(actGroup())}
-                        disabled={!current}
-                    >ערוך פרטי קבוצה...</Button>
-                    <Spacer/>
-                     <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => setEditGroupDialog({})}
-                    >קבוצה חדשה...</Button>
+                        <GButton label="ערוך פרטי קבוצה..." onClick={() => setEditGroupDialog(actGroup())} disabled={!current} />
+                        <Spacer />
+                        <GButton label="קבוצה חדשה..." onClick={() => setEditGroupDialog({})} />
                     </HBox>
                 </VBox>
             </Paper1>
@@ -151,7 +142,7 @@ export default function SubGroups(props) {
                                 }}
                                 instruction={"דאבל-קליק להוספת תלמיד/ה לקבוצה"}
                             />
-                            
+
                         </VBox>
                         <VBox>
                             <VBox style={{ maxHeight: 400, overflow: 'auto' }}>
@@ -183,20 +174,18 @@ export default function SubGroups(props) {
                             </VBox>
                             <Spacer />
                             <HBox>
-                            
-                                <Button variant="outlined" color="primary" disabled={!dirty()}
-                                    onClick={() => {
-                                        if (editGroup)
-                                            saveSubGroup();
-                                        if (editMembers)
-                                            saveSubGroupMembers();
-                                    }}>שמור</Button>
+
+                                <GButton label="שמור" disabled={!dirty()} onClick={() => {
+                                    if (editGroup)
+                                        saveSubGroup();
+                                    if (editMembers)
+                                        saveSubGroupMembers();
+                                }} />
                                 <Spacer />
-                                {dirty() ? <Button variant="outlined" color="primary"
-                                    onClick={() => {
-                                        setEditMembers(undefined)
-                                        setEditGroup(undefined)
-                                    }}>בטל</Button> : null}
+                                {dirty() ? <GButton label="בטל" onClick={() => {
+                                    setEditMembers(undefined)
+                                    setEditGroup(undefined)
+                                }}/> : null}
                             </HBox>
                         </VBox>
 

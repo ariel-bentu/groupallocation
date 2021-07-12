@@ -1,9 +1,10 @@
 import React ,{useEffect, useState} from 'react';
 
 import { Dialog, DialogTitle, DialogContent, 
-     DialogActions, Button,
+     DialogActions, 
     Slide, TextField } from '@material-ui/core';
 
+import { GButton } from './elems';
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
@@ -38,12 +39,8 @@ export function EditResults(props) {
         />
         </DialogContent>
         <DialogActions>
-          <Button onClick={props.Cancel} color="primary">
-            בטל
-          </Button>
-          <Button onClick={()=>props.Save(name)} color="primary">
-            שמור
-          </Button>
+          <GButton onClick={props.Cancel} label="בטל"/>
+          <GButton onClick={()=>props.Save(name)} label="שמור"/>
         </DialogActions>
       </Dialog>)
 }
