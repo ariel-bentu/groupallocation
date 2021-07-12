@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { List, ListItem, ListItemText, Paper, Button, FormControlLabel, Checkbox, Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
+import {  Paper, Button,  Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
 import useStyles from "./styles.js"
 import * as api from './api'
 import { VBox, HBox, Spacer, Header, WPaper } from './elems'
@@ -19,7 +19,7 @@ export default function SubGroups(props) {
 
     useEffect(() => {
         props.setDirty(editGroup !== undefined || editMembers !== undefined);
-    }, [editGroup]);
+    }, [editGroup]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         api.loadSubGroups(props.currentTask).then(grps => setGroups(grps));
@@ -103,7 +103,7 @@ export default function SubGroups(props) {
                 setMembers(gMembers);
             });
         }
-    }, [current]);
+    }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
     return (

@@ -2,9 +2,10 @@ import { makeStyles } from "@material-ui/core/styles";
 
 const useStyles = makeStyles(theme => ({
     root: {
-        flexGrow: 1,
-        width: "100%",
-        backgroundColor: theme.palette.background.paper
+        height:'100%',
+        width: '98%',
+        
+        backgroundColor: 'gray'// theme.palette.background.paper
     },
     tabs: {
         alignContent: "flex-start"
@@ -12,14 +13,19 @@ const useStyles = makeStyles(theme => ({
     paperContainer: {
         direction:'rtl',
         display: 'flex',
-            flexWrap: 'wrap',
+        flexDirection:'row',
+        flexWrap: 'wrap',
+        alignItems: 'stretch',
         '& > *': {
             margin: theme.spacing(1),
             width: theme.spacing(55),
-            height: theme.spacing(65),
+            //height: '100%'//theme.spacing(65),
+           
         },
         backgroundColor: theme.palette.background.paper,
-        justifyContent:'center'
+        justifyContent:'center',
+        width:'100%',
+        height:'100%'
     },
     paper : {
         

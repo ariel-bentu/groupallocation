@@ -1,8 +1,8 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { List, ListItem, ListItemText, TextField, SvgIcon } from '@material-ui/core';
 import useStyles from "./styles.js"
-import { VBox, HBox, Spacer, Header } from './elems'
+import { VBox, Spacer, Header } from './elems'
 
 export default function SearchList(props) {
     const classes = useStyles();

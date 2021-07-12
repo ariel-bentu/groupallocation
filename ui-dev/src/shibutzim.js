@@ -21,7 +21,7 @@ function Shibutzim(props) {
   useEffect(() => {
     setCurrentResult("")
     loadResults()
-  }, [props.currentTask]);
+  }, [props.currentTask]);// eslint-disable-line react-hooks/exhaustive-deps
 
   //console.log(currentResult ? results.find(r => r.id === currentResult).name : "")
   return (

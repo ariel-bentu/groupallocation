@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
     Dialog, DialogTitle, DialogContent,
     DialogActions, Button,
-    Slide, TextField, Checkbox, FormControlLabel
+    Slide, TextField
 } from '@material-ui/core';
 
 import { VBox, LabeledCheckBox } from './elems';
@@ -19,7 +19,7 @@ export default function EditGroup(props) {
     useEffect(() => {
         console.log("set EditGroup")
         setEditGroup(props.group);
-    }, [props.open])
+    }, [props.open]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const toggle = (propName) => {
         let newGroup = { ...editGroup }

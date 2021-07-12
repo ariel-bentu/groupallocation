@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { List, ListItem, ListItemText, Paper, Button, FormControlLabel, Checkbox, Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
+import { Paper, Button, FormControlLabel, Checkbox, Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
 import useStyles from "./styles.js"
 import * as api from './api'
 import { VBox, HBox, Spacer, Header, WPaper, ROField } from './elems'
@@ -13,7 +13,7 @@ export default function PupilPref(props) {
 
     useEffect(() => {
         props.setDirty(editPrefs !== undefined);
-    }, [editPrefs]);
+    }, [editPrefs]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
     const selectPupil = (id) => {
@@ -62,7 +62,7 @@ export default function PupilPref(props) {
 
     const addPref = (refId) => {
         let srcPrefs = actPrefs();
-        if (srcPrefs.length == 3) {
+        if (srcPrefs.length === 3) {
             props.msg.notify("אין אפשרות להוסיף עוד העדפות")
             return;
         }
@@ -101,13 +101,13 @@ export default function PupilPref(props) {
                 setPrefs(ps);
             });
         }
-    }, [current]);
+    }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
 
     let visPref = actPrefs();
 
     return (
-        <div className={classes.paperContainer}>
-            <Paper elevation={3} className={classes.paper}>
+        <div className={classes.paperContainer} style={{backgroundColor:'green'}}>
+            <Paper elevation={3} className={classes.paper} style={{width:'20%', backgroundColor:'yellow'}}>
                 <Header>תלמידים</Header>
                 <VBox>
                     <SearchList items={props.pupils} current={current ? current.id : undefined} genderIcon={true}
@@ -118,9 +118,9 @@ export default function PupilPref(props) {
                 </VBox>
             </Paper>
             {current ?
-                <HBox>
+                <HBox style={{width:'70%'}}>
 
-                    <Paper>
+                    <Paper style={{width:'30%'}}>
                         <Header>פרטים של {current.name}</Header>
                         <Spacer />
                         <VBox>
@@ -143,8 +143,8 @@ export default function PupilPref(props) {
                             </HBox>
                         </VBox>
                     </Paper>
-
-                    <WPaper>
+                    <Spacer/>
+                    <WPaper style={{width:'40%'}}>
                         <Header>העדפות של {current.name}{editPrefs ? " - בעריכה" : ""}</Header>
                         <Spacer />
                         <HBox>
@@ -154,8 +154,8 @@ export default function PupilPref(props) {
                                     addPref(id)
                                 }}
                             />
-                            <VBox>
-                                <Table style={{ width: '50%' }} aria-label="simple table">
+                            <VBox style={{ width: '50%' }}>
+                                <Table  aria-label="simple table">
                                     <TableHead>
                                         <TableRow>
                                             <TableCell>#</TableCell>

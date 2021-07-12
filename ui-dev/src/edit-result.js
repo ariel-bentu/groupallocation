@@ -15,7 +15,7 @@ export function EditResults(props) {
     useEffect(()=>{
         console.log("setName")
         setName(props.Name);
-    }, [props.open])
+    }, [props.open]) // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
     <Dialog
