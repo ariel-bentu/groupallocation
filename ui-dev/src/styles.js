@@ -18,8 +18,8 @@ const useStyles = makeStyles(theme => ({
         alignItems: 'stretch',
         '& > *': {
             margin: theme.spacing(1),
-            width: theme.spacing(55),
-            //height: '100%'//theme.spacing(65),
+            width: '30%',
+            height: '85%'
            
         },
         backgroundColor: theme.palette.background.paper,

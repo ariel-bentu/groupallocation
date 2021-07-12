@@ -16,20 +16,21 @@ export function HBox(props) {
     </Box>
 }
 
-export function VBoxScroll(props) {
-    return <Box style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', ...props.style }}>
-        {props.children}
-    </Box>
-}
 
 export function Spacer(props) {
     return <dir style={{ width: props.width ? props.width : 5 }} />
 }
+export function Text(props) {
+    return <dir style={{ fontSize: 12 }} >{props.children}</dir>
+}
 
 
+export function Paper1(props) {
+    return <Paper elevation={3} style={{ width: props.width ? props.width: '27%', height: '80%', ...props.style }} {...props}>{props.children}</Paper>
+}
 
-export function WPaper(props) {
-    return <Paper style={{ width: '60%' }}>{props.children}</Paper>
+export function Paper2(props) {
+    return <Paper1 width={props.width || '60%'}>{props.children}</Paper1>
 }
 
 export function Header(props) {

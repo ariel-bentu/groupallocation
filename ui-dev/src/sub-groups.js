@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {  Paper, Button,  Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
+import {   Button,  Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
 import useStyles from "./styles.js"
 import * as api from './api'
-import { VBox, HBox, Spacer, Header, WPaper } from './elems'
+import { VBox, HBox, Spacer, Header, Paper1, Paper2 } from './elems'
 import SearchList from './list-with-search'
 import EditGroup from './edit-group'
 
@@ -62,6 +62,11 @@ export default function SubGroups(props) {
     const addPupilToSubGroup = (pupilId) => {
         if (!current)
             return
+        
+        if (actMembers().find(p=>p.refId === pupilId)) {
+            props.msg.notify("תלמיד זה כבר חבר בקבוצה זו")
+            return
+        }
         let srcMembers = actMembers();
 
         let newMembers = [...srcMembers, {
@@ -108,10 +113,11 @@ export default function SubGroups(props) {
 
     return (
         <div className={classes.paperContainer}>
-            <Paper elevation={3} className={classes.paper}>
+            <Paper1>
                 <Header>קבוצות{" (" + (groups ? groups.length : "-") + ")"}</Header>
                 <VBox>
                     <SearchList items={groups} current={current ? current.id : undefined}
+                        style={{height:'60vh', width:'90%'}}
                         onSelect={(id) => selectSubgroup(id)}
                         onDoubleClick={() => { }}
                     />
@@ -131,9 +137,9 @@ export default function SubGroups(props) {
                     >קבוצה חדשה...</Button>
                     </HBox>
                 </VBox>
-            </Paper>
+            </Paper1>
             {current ?
-                <WPaper>
+                <Paper2>
                     <Header>{current.name}{" (" + actMembers().length + ")"}{editMembers ? " - בעריכה" : ""}</Header>
                     <Spacer />
                     <HBox>
@@ -143,8 +149,9 @@ export default function SubGroups(props) {
                                 onDoubleClick={(id) => {
                                     addPupilToSubGroup(id)
                                 }}
+                                instruction={"דאבל-קליק להוספת תלמיד/ה לקבוצה"}
                             />
-                            דאבל-קליק להוספת תלמיד/ה לקבוצה
+                            
                         </VBox>
                         <VBox>
                             <VBox style={{ maxHeight: 400, overflow: 'auto' }}>
@@ -195,10 +202,11 @@ export default function SubGroups(props) {
 
 
                     </HBox>
-                </WPaper> : null}
+                </Paper2> : null}
             <EditGroup open={editGroupDialog !== undefined} group={editGroupDialog}
                 Save={newGroup => {
                     setEditGroupDialog(undefined)
+                    alert("dodo")
                 }}
                 Cancel={() => setEditGroupDialog(undefined)}
             />

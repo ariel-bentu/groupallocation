@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Paper, Button, FormControlLabel, Checkbox, Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
+import {  Button, FormControlLabel, Checkbox, Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
 import useStyles from "./styles.js"
 import * as api from './api'
-import { VBox, HBox, Spacer, Header, WPaper, ROField } from './elems'
+import { VBox, HBox, Spacer, Header, ROField, Paper1, Paper2 } from './elems'
 import SearchList from './list-with-search'
+import EditPupil from './edit-pupil'
+
 
 export default function PupilPref(props) {
     const classes = useStyles();
     const [current, setCurrent] = useState(undefined);
     const [prefs, setPrefs] = useState([]);
     const [editPrefs, setEditPrefs] = useState(undefined);
+    const [editPupilDialog, setEditPupilDialog] = useState(undefined);
 
     useEffect(() => {
         props.setDirty(editPrefs !== undefined);
@@ -66,6 +69,12 @@ export default function PupilPref(props) {
             props.msg.notify("אין אפשרות להוסיף עוד העדפות")
             return;
         }
+
+        if (srcPrefs.find(p=>p.refId === refId)) {
+            props.msg.notify("תלמיד זה כבר נמצא כהעדפה")
+            return
+        }
+
         let newPrefs = [...srcPrefs, {
             id: current.id,
             refId,
@@ -106,106 +115,119 @@ export default function PupilPref(props) {
     let visPref = actPrefs();
 
     return (
-        <div className={classes.paperContainer} style={{backgroundColor:'green'}}>
-            <Paper elevation={3} className={classes.paper} style={{width:'20%', backgroundColor:'yellow'}}>
+        <div className={classes.paperContainer}>
+            <Paper1 width='25%'>
                 <Header>תלמידים</Header>
-                <VBox>
-                    <SearchList items={props.pupils} current={current ? current.id : undefined} genderIcon={true}
 
-                        onSelect={(id) => selectPupil(id)}
-                        onDoubleClick={() => alert("double click")}
-                    />
-                </VBox>
-            </Paper>
+                <SearchList items={props.pupils} current={current ? current.id : undefined} genderIcon={true}
+                    style={{ width: '80%', height: '85%' }}
+
+                    onSelect={(id) => selectPupil(id)}
+                    onDoubleClick={() =>{}}
+                />
+                <Button variant="outlined" color="primary" 
+                                onClick={() => setEditPupilDialog({})}>הוסף תלמיד...</Button>
+
+            </Paper1>
             {current ?
-                <HBox style={{width:'70%'}}>
 
-                    <Paper style={{width:'30%'}}>
-                        <Header>פרטים של {current.name}</Header>
-                        <Spacer />
-                        <VBox>
+                <Paper1 width='25%'>
+                    <Header>פרטים של {current.name}</Header>
+                    <Spacer />
+                    <VBox>
 
-                            <ROField label={"שם"} value={current.name} />
-                            <ROField label={"מין"} value={current.isMale ? "בן" : "בת"} />
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={current.active}
-                                        color="primary" />
-                                }
-                                label={"פעיל"}
-                            />
-                            <ROField label={"הערות"} value={current.remarks} />
-                            <Spacer />
-                            <HBox>
-                                <Button variant="outlined" color="primary" onClick={() => { }}>מחק תלמיד</Button>
-                                <Button variant="outlined" color="primary" onClick={() => { }}>ערוך תלמיד...</Button>
-                            </HBox>
-                        </VBox>
-                    </Paper>
-                    <Spacer/>
-                    <WPaper style={{width:'40%'}}>
-                        <Header>העדפות של {current.name}{editPrefs ? " - בעריכה" : ""}</Header>
+                        <ROField label={"שם"} value={current.name} />
+                        <ROField label={"מין"} value={current.isMale ? "בן" : "בת"} />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={current.active}
+                                    color="primary" />
+                            }
+                            label={"פעיל"}
+                        />
+                        <ROField label={"הערות"} value={current.remarks} />
                         <Spacer />
                         <HBox>
-                            <SearchList items={props.pupils.filter(p => p.id !== current.id)} genderIcon={true}
-                                onSelect={() => { }}
-                                onDoubleClick={(id) => {
-                                    addPref(id)
-                                }}
-                            />
-                            <VBox style={{ width: '50%' }}>
-                                <Table  aria-label="simple table">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>#</TableCell>
-                                            <TableCell align="right">שם</TableCell>
-                                            <TableCell align="right">פעיל</TableCell>
-                                            <TableCell align="right">פעולות</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {visPref ? visPref.map((p, index) => (
-
-                                            <TableRow key={index}>
-                                                <TableCell component="th" scope="row">{index + 1}</TableCell>
-                                                <TableCell align="right">{props.pupils.find(pupil => pupil.id === p.refId).name}</TableCell>
-                                                <TableCell align="right">
-                                                    <Checkbox
-                                                        checked={p.active}
-                                                        color="primary"
-                                                        onClick={(e) => toggleActive(p.refId)}
-                                                    />
-                                                </TableCell>
-                                                <TableCell >
-                                                    <HBox>
-                                                        <Button variant="outlined" color="primary"
-                                                            onClick={() => removePref(index)}
-                                                        >מחק</Button>
-                                                        {index > 0 ? <Button variant="outlined" color="primary"
-                                                            onClick={() => swapPref(index, index - 1)}
-                                                        >&uarr;</Button> : null}
-                                                        {index < prefs.length - 1 ? <Button variant="outlined" color="primary"
-                                                            onClick={() => swapPref(index, index + 1)}
-                                                        >&darr;</Button> : null}
-                                                    </HBox>
-                                                </TableCell>
-                                            </TableRow>
-
-                                        )) : null}
-                                    </TableBody>
-                                </Table>
-                                <HBox>
-                                    <Button variant="outlined" color="primary" disabled={!editPrefs}
-                                        onClick={() => save()}>שמור</Button>
-                                    <Spacer />
-                                    {editPrefs ? <Button variant="outlined" color="primary"
-                                        onClick={() => setEditPrefs(undefined)}>בטל</Button> : null}
-                                </HBox>
-                            </VBox>
+                            <Button variant="outlined" color="primary" onClick={() => { }}>מחק תלמיד</Button>
+                            <Button variant="outlined" color="primary" onClick={() => {
+                                setEditPupilDialog(current)
+                             }}>ערוך תלמיד...</Button>
                         </HBox>
-                    </WPaper>
-                </HBox> : null}
+                    </VBox>
+                </Paper1> : null}
+           
+            {current ? <Paper2 width='45%' >
+                <Header>העדפות של {current.name}{editPrefs ? " - בעריכה" : ""}</Header>
+                <Spacer />
+                <HBox  >
+                    <SearchList items={props.pupils.filter(p => p.id !== current.id)} genderIcon={true} 
+                        style={{ width: '40%' }}
+                        onSelect={() => { }}
+                        onDoubleClick={(id) => {
+                            addPref(id)
+                        }}
+                        instruction={"דאבל-קליק להוספת העדפה"}
+                    />
+                    <VBox style={{ width: '60%'}}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>#</TableCell>
+                                    <TableCell align="right">שם</TableCell>
+                                    <TableCell align="right">פעיל</TableCell>
+                                    <TableCell align="right">פעולות</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {visPref ? visPref.map((p, index) => (
+
+                                    <TableRow key={index}>
+                                        <TableCell component="th" scope="row">{index + 1}</TableCell>
+                                        <TableCell align="right">{props.pupils.find(pupil => pupil.id === p.refId).name}</TableCell>
+                                        <TableCell align="right">
+                                            <Checkbox
+                                                checked={p.active}
+                                                color="primary"
+                                                onClick={(e) => toggleActive(p.refId)}
+                                            />
+                                        </TableCell>
+                                        <TableCell >
+                                            <HBox>
+                                                <Button variant="outlined" color="primary"
+                                                    onClick={() => removePref(index)}
+                                                >מחק</Button>
+                                                {index > 0 ? <Button variant="outlined" color="primary"
+                                                    onClick={() => swapPref(index, index - 1)}
+                                                >&uarr;</Button> : null}
+                                                {index < prefs.length - 1 ? <Button variant="outlined" color="primary"
+                                                    onClick={() => swapPref(index, index + 1)}
+                                                >&darr;</Button> : null}
+                                            </HBox>
+                                        </TableCell>
+                                    </TableRow>
+
+                                )) : null}
+                            </TableBody>
+                        </Table>
+                        <HBox>
+                            <Button variant="outlined" color="primary" disabled={!editPrefs}
+                                onClick={() => save()}>שמור</Button>
+                            <Spacer />
+                            {editPrefs ? <Button variant="outlined" color="primary"
+                                onClick={() => setEditPrefs(undefined)}>בטל</Button> : null}
+                        </HBox>
+                    </VBox>
+                </HBox>
+            </Paper2>
+                : null}
+            <EditPupil open={editPupilDialog !== undefined} pupil={editPupilDialog}
+                Save={newPupil => {
+                    setEditPupilDialog(undefined)
+                    alert("todo")
+                }}
+                Cancel={() => setEditPupilDialog(undefined)}
+            />
         </div>
 
     );

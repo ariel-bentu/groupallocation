@@ -93,7 +93,7 @@ export default function App() {
   }
 
   return (
-    <div>
+    <div style={{height: '100%'}}>
       <AppBar position="static" color="default" >
         <Tabs
           value={value}
@@ -105,8 +105,8 @@ export default function App() {
           centered
         >
           <Tab label={"שיבוצים" + (value === 0 && tabDirty ? "*" : "")}  />
-          <Tab label={"תלמידים וחברים" + (value === 2 && tabDirty ? "*" : "")}  />
-          <Tab label={"קבוצות" + (value === 3 && tabDirty ? "*" : "")} />
+          <Tab label={"תלמידים וחברים" + (value === 1 && tabDirty ? "*" : "")}  />
+          <Tab label={"קבוצות" + (value === 2 && tabDirty ? "*" : "")} />
         </Tabs>
       </AppBar>
       <TabPanel value={value} index={0} class={classes.root}>
