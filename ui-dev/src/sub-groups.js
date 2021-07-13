@@ -185,7 +185,7 @@ export default function SubGroups(props) {
                                 {dirty() ? <GButton label="בטל" onClick={() => {
                                     setEditMembers(undefined)
                                     setEditGroup(undefined)
-                                }}/> : null}
+                                }} /> : null}
                             </HBox>
                         </VBox>
 
@@ -194,8 +194,7 @@ export default function SubGroups(props) {
                 </Paper2> : null}
             <EditGroup open={editGroupDialog !== undefined} group={editGroupDialog}
                 Save={newGroup => {
-                    setEditGroupDialog(undefined)
-                    alert("dodo")
+                    api.saveSubGroup(props.currentTask, newGroup).then(() => setEditGroupDialog(undefined));
                 }}
                 Cancel={() => setEditGroupDialog(undefined)}
             />

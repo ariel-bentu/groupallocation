@@ -81,14 +81,13 @@ func main() {
 
 	m.Post("/api/pupils", func(w http.ResponseWriter, r *http.Request) (int, string) {
 		task := getParamInt(r, "task")
-		id := getParamInt(r, "ID")
 
 		decoder := json.NewDecoder(r.Body)
 		defer r.Body.Close()
 		var pupil IdNameJson
 		decoder.Decode((&pupil))
 
-		err := upsertPupil(task, id, pupil)
+		err := upsertPupil(task, pupil)
 		if err == nil {
 			return 201, "Successfully Updated"
 		}
@@ -102,7 +101,7 @@ func main() {
 		var pupil IdNameJson
 		decoder.Decode((&pupil))
 
-		err := upsertPupil(task, -1, pupil)
+		err := upsertPupil(task, pupil)
 		if err == nil {
 			return 201, "Successfully Added"
 		}
@@ -114,22 +113,37 @@ func main() {
 		id := getParamInt(r, "id")
 		err := deletePupil(&User{tenant: "ariel"}, task, id)
 		if err == nil {
-			return 201, "Successfully Added"
+			return 201, "Successfully deleted"
 		}
 		return 500, err.Error()
 	})
 
-	m.Get("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
+	m.Post("/api/task", func(w http.ResponseWriter, r *http.Request) (int, string) {
+		decoder := json.NewDecoder(r.Body)
+		defer r.Body.Close()
+		var task IdNameJson
+		decoder.Decode((&task))
+
+		err := createEditTask(user.tenant, task)
+		if err == nil {
+			return 201, "task created Successfully"
+		}
+		return 500, err.Error()
+	})
+
+	m.Get("/api/task", func(w http.ResponseWriter, r *http.Request) {
 		json, err := getTaskList(user)
 		if err == nil {
 			w.Write(json)
+			return
 		}
+
 	})
 
-	m.Delete("/api/tasks", func(w http.ResponseWriter, r *http.Request) (int, string) {
+	m.Delete("/api/task", func(w http.ResponseWriter, r *http.Request) (int, string) {
 		taskId := getParamInt(r, "task")
 		deleteTask(user, taskId)
-		return 201, "Successufuly deleted task"
+		return 201, "Successfully deleted task"
 	})
 
 	m.Get("/api/subgroups", func(w http.ResponseWriter, r *http.Request) {
@@ -391,7 +405,7 @@ func main() {
 		w.Write([]byte("הזזה בוצעה בהצלחה"))
 	})
 
-	m.Delete("/api/delete-result", func(w http.ResponseWriter, r *http.Request) {
+	m.Delete("/api/result", func(w http.ResponseWriter, r *http.Request) {
 		id := getParamInt(r, "id")
 		if id < 0 {
 			w.Write([]byte("Bad or missing result 'id'"))
@@ -423,7 +437,7 @@ func main() {
                 </html>`))
 	})
 
-	m.Get("/api/available-results", func(w http.ResponseWriter, r *http.Request) {
+	m.Get("/api/result", func(w http.ResponseWriter, r *http.Request) {
 		taskId := getParamInt(r, "task")
 
 		json, err := getResultsList(taskId)

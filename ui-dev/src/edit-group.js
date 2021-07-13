@@ -27,6 +27,7 @@ export default function EditGroup(props) {
         setEditGroup(newGroup);
     }
 
+
     return (
         editGroup ? <Dialog
             open={props.open}

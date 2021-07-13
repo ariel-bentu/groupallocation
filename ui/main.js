@@ -43,7 +43,7 @@ function deleteTask() {
     if (sel != undefined) {
         if (window.confirm("האם את בטוחה שאת מעוניינת למחוק את השיבוץ: " + sel.text())) {
             $.ajax({
-                url: "/api/tasks?task=" + sel.val(),
+                url: "/api/task?task=" + sel.val(),
                 type: 'DELETE',
                 success: function (result) {
                     showMessage("קבוצה עודכנה בהצלחה")
@@ -483,7 +483,7 @@ function loadSubgroupPupils() {
 }
 
 function loadTasks() {
-    $.get("/api/tasks", function (json) {
+    $.get("/api/task", function (json) {
 
         emptyList("tasks")
         $.each(JSON.parse(json), function (i, value) {
@@ -504,7 +504,7 @@ function loadTasks() {
 
 function loadAvailableResults(currentName) {
     let currentId = undefined
-    $.get("/api/available-results?task=" + taskID, function (json) {
+    $.get("/api/result?task=" + taskID, function (json) {
 
         emptyList("results")
         $.each(JSON.parse(json), function (i, value) {

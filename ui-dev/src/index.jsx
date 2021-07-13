@@ -25,7 +25,7 @@ function TabPanel(props) {
       {...other}
     >
       {props.title ? <h1 align="center">{props.title}</h1> : null}
-      <Box className={props.class} p={3}>{children}</Box>
+      <Box className={props.cls} p={3}>{children}</Box>
     </Typography>
   );
 }
@@ -93,29 +93,41 @@ export default function App() {
   }
 
   return (
-    <div style={{height: '100%'}}>
+    <div style={{ height: '100%' }}>
       <AppBar position="static" color="default" >
         <Tabs
           value={value}
           onChange={changeTab}
           indicatorColor="primary"
           textColor="primary"
-          variant="fullwidth"
           scrollButtons="auto"
           centered
         >
-          <Tab label={"שיבוצים" + (value === 0 && tabDirty ? "*" : "")}  />
-          <Tab label={"תלמידים וחברים" + (value === 1 && tabDirty ? "*" : "")}  />
+          <Tab label={"שיבוצים" + (value === 0 && tabDirty ? "*" : "")} />
+          <Tab label={"תלמידים וחברים" + (value === 1 && tabDirty ? "*" : "")} />
           <Tab label={"קבוצות" + (value === 2 && tabDirty ? "*" : "")} />
         </Tabs>
       </AppBar>
-      <TabPanel value={value} index={0} class={classes.root}>
-        <Shibutzim items={listTasks} currentTask={currentTask} onChangeTask={(id) => setCurrentTask(id)} msg={msg} setDirty={_setTabDirty} />
+      <TabPanel value={value} index={0} cls={classes.root}>
+        <Shibutzim items={listTasks} currentTask={currentTask}
+          onChangeTask={(id) => setCurrentTask(id)} msg={msg} setDirty={_setTabDirty}
+          reloadTasks={newId => {
+            api.loadTasks().then(tasks => {
+              setCurrentTask(newId)
+              setListTasks(tasks);
+            })
+          }} />
       </TabPanel>
-      <TabPanel value={value} index={1} class={classes.root}>
-           <PupilPrefs currentTask={currentTask} pupils={listPupils} msg={msg} setDirty={_setTabDirty} />
+      <TabPanel value={value} index={1} cls={classes.root}>
+        <PupilPrefs currentTask={currentTask} pupils={listPupils} msg={msg} setDirty={_setTabDirty} 
+        reloadPupil={()=>{
+          api.loadPupils(currentTask).then(pupils => {
+            setListPupils(pupils);
+          })
+        }
+        }/>
       </TabPanel>
-      <TabPanel value={value} index={2} class={classes.root}>
+      <TabPanel value={value} index={2} cls={classes.root}>
         <SubGroups currentTask={currentTask} pupils={listPupils} msg={msg} setDirty={_setTabDirty} />
       </TabPanel>
 

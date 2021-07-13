@@ -51,6 +51,7 @@ export default function EditPupil(props) {
                         label="שם"
                         variant="filled"
                         value={editPupil.name}
+                        autoFocus={true}
                     />
                     <LabeledCheckBox
                         checked={editPupil.isMale}

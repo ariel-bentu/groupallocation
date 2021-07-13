@@ -388,6 +388,25 @@ func findPupilId(pupils []*Pupil, name string) int {
 	return -1
 }
 
+func createEditTask(tenant string, task IdNameJson) error {
+	connect()
+	if task.Id != "" {
+		_, err := db.Exec("update task (tenant, task, name) values (?,?,?)", tenant, task.Id, task.Name)
+		return err
+	} else {
+		r := db.QueryRow("select max(task) from task")
+		maxId := 0
+		if r != nil {
+			r.Scan(&maxId)
+		}
+		_, err := db.Exec("insert into task (tenant, task, name, createDate) values (?,?,?,?)", tenant, maxId+1, task.Name, time.Now().Unix())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func createTask(tx *sql.Tx, tenant string, taskName string) int {
 	connect()
 	r := db.QueryRow("select max(task) from task")
@@ -440,7 +459,7 @@ func getTaskList(user *User) ([]byte, error) {
 	return json.Marshal(tasks)
 }
 
-func upsertPupil(task int, id int, pupil IdNameJson) error {
+func upsertPupil(task int, pupil IdNameJson) error {
 	connect()
 	gender := 1
 	inactive := 0
@@ -449,6 +468,10 @@ func upsertPupil(task int, id int, pupil IdNameJson) error {
 	}
 	if !pupil.Active {
 		inactive = 1
+	}
+	id := -1
+	if len(pupil.Id) > 0 {
+		id, _ = strconv.Atoi(pupil.Id)
 	}
 
 	if id >= 0 {

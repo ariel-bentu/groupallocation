@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { FormControlLabel, Checkbox, Table, TableBody, TableHead, TableRow, TableCell } from '@material-ui/core';
+import {
+    FormControlLabel, Checkbox, Table, TableBody, TableHead, TableRow, TableCell,
+    List, ListItem, ListItemText
+} from '@material-ui/core';
 import useStyles from "./styles.js"
 import * as api from './api'
 import { VBox, HBox, Spacer, Header, ROField, Paper1, Paper2, GButton } from './elems'
@@ -13,6 +16,8 @@ export default function PupilPref(props) {
     const [prefs, setPrefs] = useState([]);
     const [editPrefs, setEditPrefs] = useState(undefined);
     const [editPupilDialog, setEditPupilDialog] = useState(undefined);
+    const [pupilSubgroups, setPupilSubgroups] = useState([]);
+
 
     useEffect(() => {
         props.setDirty(editPrefs !== undefined);
@@ -64,11 +69,12 @@ export default function PupilPref(props) {
     }
 
     const addPref = (refId) => {
-        let srcPrefs = actPrefs();
-        if (srcPrefs.length === 3) {
-            props.msg.notify("אין אפשרות להוסיף עוד העדפות")
-            return;
-        }
+        let srcPrefs = actPrefs() || [];
+        if (srcPrefs)
+            if (srcPrefs.length === 3) {
+                props.msg.notify("אין אפשרות להוסיף עוד העדפות")
+                return;
+            }
 
         if (srcPrefs.find(p => p.refId === refId)) {
             props.msg.notify("תלמיד זה כבר נמצא כהעדפה")
@@ -109,6 +115,9 @@ export default function PupilPref(props) {
                 setEditPrefs(undefined);
                 setPrefs(ps);
             });
+
+            console.log("Load Groups");
+            api.loadPupilSubgroups(props.currentTask, current.id).then((gprs => setPupilSubgroups(gprs)));
         }
     }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -125,7 +134,7 @@ export default function PupilPref(props) {
                     onSelect={(id) => selectPupil(id)}
                     onDoubleClick={() => { }}
                 />
-                <GButton label="הוסף תלמיד..." onClick={() => setEditPupilDialog({})} />
+                <GButton label="הוסף תלמיד..." onClick={() => setEditPupilDialog({ active: true })} />
 
             </Paper1>
             {current ?
@@ -148,7 +157,26 @@ export default function PupilPref(props) {
                         <ROField label={"הערות"} value={current.remarks} />
                         <Spacer />
                         <HBox>
-                            <GButton label="מחק תלמיד" onClick={() => { alert("todo") }} />
+                            <GButton label="מחק תלמיד"
+                                onClick={() =>
+                                    props.msg.alert({
+                                        title: "מחיקת תלמיד",
+                                        message: `האם למחוק את התלמיד ${current.name} \nמחיקת התלמיד הינה בלתי הפיכה!!!`,
+                                        buttons: [{
+                                            label: "מחק",
+                                            callback: () => {
+                                                api.deletePupil(props.currentTask, current.id).then(() => {
+                                                    props.reloadPupil();
+                                                    props.msg.notify("תלמיד נמחק בהצלחה")
+                                                })
+                                            }
+                                        },
+                                        {
+                                            label: "בטל",
+                                            callback: () => { }
+                                        }]
+                                    }
+                                    )} disabled={!current} />
                             <GButton label="ערוך תלמיד..." onClick={() => setEditPupilDialog(current)} />
                         </HBox>
                     </VBox>
@@ -193,7 +221,7 @@ export default function PupilPref(props) {
                                             <HBox>
                                                 <GButton label="מחק" onClick={() => removePref(index)} />
                                                 {index > 0 ? <GButton label="&uarr;" onClick={() => swapPref(index, index - 1)} /> : null}
-                                                {index < prefs.length - 1 ? <GButton label="&darr;" onClick={() => swapPref(index, index + 1)} /> : null}
+                                                {prefs && index < prefs.length - 1 ? <GButton label="&darr;" onClick={() => swapPref(index, index + 1)} /> : null}
                                             </HBox>
                                         </TableCell>
                                     </TableRow>
@@ -206,6 +234,16 @@ export default function PupilPref(props) {
                             <Spacer />
                             {editPrefs ? <GButton label="בטל" onClick={() => setEditPrefs(undefined)} /> : null}
                         </HBox>
+                        <Header>קבוצות</Header>
+                        <List dense={true}>
+                            {pupilSubgroups.map((g, index) => (<ListItem key={index}>
+                                <ListItemText
+                                    primary={g.name}
+                                    secondary={g.isUnite ? "איחוד" : "פירוד"}
+                                />
+                            </ListItem>))}
+                        </List>
+
                     </VBox>
                 </HBox>
             </Paper2>
@@ -213,7 +251,10 @@ export default function PupilPref(props) {
             <EditPupil open={editPupilDialog !== undefined} pupil={editPupilDialog}
                 Save={newPupil => {
                     setEditPupilDialog(undefined)
-                    alert("todo")
+                    api.savePupil(props.currentTask, newPupil).then(() => {
+                        props.reloadPupil();
+                        props.msg.notify(`${newPupil.name} עודכן בהצלחה`)
+                    })
                 }}
                 Cancel={() => setEditPupilDialog(undefined)}
             />
