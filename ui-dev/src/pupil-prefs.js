@@ -205,11 +205,15 @@ export default function PupilPref(props) {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {visPref ? visPref.map((p, index) => (
+                                {visPref ? visPref.map((p, index) => {
+                                    let pupil = props.pupils? props.pupils.find(pupil => pupil.id === p.refId):undefined;
+                                    if (!pupil)
+                                        return null;
+                                    return (
 
                                     <TableRow key={index}>
                                         <TableCell component="th" scope="row">{index + 1}</TableCell>
-                                        <TableCell align="right">{props.pupils.find(pupil => pupil.id === p.refId).name}</TableCell>
+                                        <TableCell align="right">{pupil.name}</TableCell>
                                         <TableCell align="right">
                                             <Checkbox
                                                 checked={p.active}
@@ -226,7 +230,7 @@ export default function PupilPref(props) {
                                         </TableCell>
                                     </TableRow>
 
-                                )) : null}
+                                )}) : null}
                             </TableBody>
                         </Table>
                         <HBox>
@@ -236,12 +240,12 @@ export default function PupilPref(props) {
                         </HBox>
                         <Header>קבוצות</Header>
                         <List dense={true}>
-                            {pupilSubgroups.map((g, index) => (<ListItem key={index}>
+                            {pupilSubgroups?pupilSubgroups.map((g, index) => (<ListItem key={index}>
                                 <ListItemText
                                     primary={g.name}
                                     secondary={g.isUnite ? "איחוד" : "פירוד"}
                                 />
-                            </ListItem>))}
+                            </ListItem>)):null}
                         </List>
 
                     </VBox>

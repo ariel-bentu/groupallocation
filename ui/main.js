@@ -78,7 +78,7 @@ function showPupilInfo() {
 function loadPupilSubgroups() {
     var sel = getSelectedOption("pupilsInPref1");
     if (sel != undefined) {
-        $.get("/api/subgroups/pupil?task=" + taskID + "&pupilId=" + sel.val(), function (json) {
+        $.get("/api/subgroup/pupil?task=" + taskID + "&pupilId=" + sel.val(), function (json) {
             emptyList("pupilsSubgroups")
 
             $.each(JSON.parse(json), function (i, value) {
@@ -408,7 +408,7 @@ function loadPupils(currentName) {
 function loadGroups(currentName) {
     let currentID = undefined;
 
-    $.get("/api/subgroups?task=" + taskID, function (json) {
+    $.get("/api/subgroup?task=" + taskID, function (json) {
         emptyList("subgroups");
         $.each(JSON.parse(json), function (i, value) {
             var opt = $('<option>').text(value.name + " - \t\t" + (value.isUnite ? "איחוד" : "פירוד")).attr('value', value.id);

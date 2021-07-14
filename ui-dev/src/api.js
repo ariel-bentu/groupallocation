@@ -13,7 +13,7 @@ export async function loadPupilPrefs(task, pupilId) {
 }
 
 export async function loadSubGroups(task) {
-    return fetch(`/api/subgroups?task=${task}`).then(res => res.json());
+    return fetch(`/api/subgroup?task=${task}`).then(res => res.json());
 }
 
 
@@ -83,7 +83,7 @@ export async function saveSubGroup(task, group) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(group)
     };
-    return fetch(`/api/subgroups?task=${task}&groupId=${group.id}`, requestOptions);
+    return fetch(`/api/subgroup?task=${task}&groupId=${group.id}`, requestOptions);
 }
 //[{id, refId}]
 export async function saveSubGroupMembers(task, groupId, members) {

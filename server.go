@@ -146,7 +146,7 @@ func main() {
 		return 201, "Successfully deleted task"
 	})
 
-	m.Get("/api/subgroups", func(w http.ResponseWriter, r *http.Request) {
+	m.Get("/api/subgroup", func(w http.ResponseWriter, r *http.Request) {
 		taskId := getParamInt(r, "task")
 		json, err := getSubgroupList2(user, taskId)
 		if err == nil {

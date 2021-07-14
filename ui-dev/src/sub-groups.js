@@ -194,7 +194,10 @@ export default function SubGroups(props) {
                 </Paper2> : null}
             <EditGroup open={editGroupDialog !== undefined} group={editGroupDialog}
                 Save={newGroup => {
-                    api.saveSubGroup(props.currentTask, newGroup).then(() => setEditGroupDialog(undefined));
+                    api.saveSubGroup(props.currentTask, newGroup).then(() => {
+                        setEditGroupDialog(undefined)
+                        api.loadSubGroups(props.currentTask).then(grps => setGroups(grps));
+                    });
                 }}
                 Cancel={() => setEditGroupDialog(undefined)}
             />
