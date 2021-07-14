@@ -608,7 +608,7 @@ func main() {
 		fmt.Fprintf(w, "Result file %s uploaded successfully.", header.Filename)
 	})
 
-	m.Use(martini.Static("ui/"))
+	m.Use(martini.Static("ui/new/"))
 
 	m.Run()
 
