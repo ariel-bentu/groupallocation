@@ -5,7 +5,7 @@ const useStyles = makeStyles(theme => ({
         height:'100%',
         width: '98%',
         
-        backgroundColor: 'gray'// theme.palette.background.paper
+        backgroundColor:  theme.palette.background.paper
     },
     tabs: {
         alignContent: "flex-start"
@@ -28,7 +28,6 @@ const useStyles = makeStyles(theme => ({
         height:'100%'
     },
     paper : {
-        
         justifyContent:'center'
     },
     list: {

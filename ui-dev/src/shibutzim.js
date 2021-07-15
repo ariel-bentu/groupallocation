@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { List, ListItem, ListItemText, Paper, TextField } from '@material-ui/core';
+import { List, ListItem, ListItemText, TextField } from '@material-ui/core';
 import useStyles from "./styles.js"
 import * as api from './api'
 import { EditResults } from './edit-result';
 import EditTask from './edit-task.js';
-import { VBox, HBox, Spacer, Header, GButton } from './elems'
+import { VBox, HBox, Spacer, Header, GButton, Paper1 } from './elems'
 
 function Shibutzim(props) {
   const classes = useStyles();
@@ -14,7 +14,7 @@ function Shibutzim(props) {
   const [timeLimit, setTimeLimit] = useState(20);
   const [graceLevel, setGraceLevel] = useState(0);
   const [editTaskDialog, setEditTaskDialog] = useState(undefined);
-  
+
 
   const loadResults = async () => {
     return api.loadResults(props.currentTask).then(results => {
@@ -25,12 +25,12 @@ function Shibutzim(props) {
 
   const getTaskName = (id) => {
     let res = props.items.find(r => r.id === id);
-    return res && res.name !== ""?res.name:"";
+    return res && res.name !== "" ? res.name : "";
   }
   const getResultName = (id) => {
     let res = results.find(r => r.id === id);
     if (!res) return ""
-    return res.title !== ""?res.title:res.runDate;
+    return res.title !== "" ? res.title : res.runDate;
   }
 
   useEffect(() => {
@@ -40,7 +40,7 @@ function Shibutzim(props) {
 
   return (
     <div className={classes.paperContainer}>
-      <Paper elevation={3} className={classes.paper}>
+      <Paper1 elevation={3} className={classes.paper}>
         <Header>שיבוצים</Header>
         <VBox>
           <List className={classes.list} style={{ height: 250 }}>
@@ -52,40 +52,40 @@ function Shibutzim(props) {
             )) : null}
           </List>
           <Spacer />
-          <GButton label="שיבוץ חדש..." onClick={() => setEditTaskDialog({id:""})} />
+          <GButton label="שיבוץ חדש..." onClick={() => setEditTaskDialog({ id: "" })} />
           <GButton label="מחק שיבוץ" disabled={!props.currentTask} onClick={() => props.msg.alert({
-             title: "מחיקת שיבוץ",
-             message: `האם למחוק את השיבוץ '${getTaskName(props.currentTask)}' \nמחיקת השיבוץ הינה בלתי הפיכה!!!`,
-             buttons: [{
-               label: "מחק",
-               callback: () => {
-                 api.deleteTask(props.currentTask).then(() => {
-                   props.reloadTasks(undefined);
-                 })
-               }
-             },
-             {
-               label: "בטל",
-               callback: () => {}
-             }]
-           })} />
+            title: "מחיקת שיבוץ",
+            message: `האם למחוק את השיבוץ '${getTaskName(props.currentTask)}' \nמחיקת השיבוץ הינה בלתי הפיכה!!!`,
+            buttons: [{
+              label: "מחק",
+              callback: () => {
+                api.deleteTask(props.currentTask).then(() => {
+                  props.reloadTasks(undefined);
+                })
+              }
+            },
+            {
+              label: "בטל",
+              callback: () => { }
+            }]
+          })} />
           <EditTask open={editTaskDialog}
-              task={editTaskDialog}
-              Name={getTaskName(props.currentTask)}
-              Cancel={() => setEditTaskDialog(undefined)}
-              Save={(newTask) => {
-                api.saveTask(newTask).then(() => props.reloadTasks(newTask.id));
-                setEditTaskDialog(undefined);
-              }}
-      />
+            task={editTaskDialog}
+            Name={getTaskName(props.currentTask)}
+            Cancel={() => setEditTaskDialog(undefined)}
+            Save={(newTask) => {
+              api.saveTask(newTask).then(() => props.reloadTasks(newTask.id));
+              setEditTaskDialog(undefined);
+            }}
+          />
         </VBox>
-        
-      </Paper>
-      
+
+      </Paper1>
 
 
 
-      <Paper elevation={3} className={classes.paper}>
+
+      <Paper1 elevation={3} className={classes.paper}>
         <Header>הרצה</Header>
         <VBox>
           <Spacer />
@@ -97,18 +97,18 @@ function Shibutzim(props) {
             let sensitiveToOnlyLast = 0;
             window.open("/run?task=" + props.currentTask + "&limit=" + timeLimit + "&graceLevel=" + graceLevel + "&sensitiveToOnlyLast=" + sensitiveToOnlyLast);
           }} />
-          
+
         </VBox>
-      </Paper>
+      </Paper1>
 
 
 
-      <Paper elevation={3} >
+      <Paper1 elevation={3} >
         <Header>תוצאות</Header>
         <VBox>
           <List className={classes.list} style={{ height: 250 }}>
             {results.map((item) => (
-              <ListItem button className={classes.listItem} selected={currentResult === item.id} 
+              <ListItem button className={classes.listItem} selected={currentResult === item.id}
                 onClick={() => setCurrentResult(item.id)} key={item.id}>
                 <ListItemText className={classes.listItemText} primary={item.title !== "" ? item.title : item.runDate} />
               </ListItem>
@@ -133,13 +133,13 @@ function Shibutzim(props) {
               },
               {
                 label: "בטל",
-                callback: () => {}
+                callback: () => { }
               }]
             })} />
-            <GButton label="שכפל תוצאה" disabled={!currentResult} onClick={() => 
-              api.duplicateResult(props.currentTask, currentResult.id, "העתק של " + currentResult.name).then(()=>{
-              api.loadResults(props.currentTask).then(rst => setResults(rst));
-            })} />
+            <GButton label="שכפל תוצאה" disabled={!currentResult} onClick={() =>
+              api.duplicateResult(props.currentTask, currentResult.id, "העתק של " + currentResult.name).then(() => {
+                api.loadResults(props.currentTask).then(rst => setResults(rst));
+              })} />
           </HBox>
           <HBox>
             <EditResults
@@ -154,7 +154,7 @@ function Shibutzim(props) {
 
           </HBox>
         </VBox>
-      </Paper>
+      </Paper1>
     </div>
   );
 }

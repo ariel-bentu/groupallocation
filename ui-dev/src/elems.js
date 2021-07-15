@@ -30,7 +30,7 @@ export function Text(props) {
 
 
 export function Paper1(props) {
-    return <Paper elevation={3} style={{ width: props.width ? props.width : '27%', height: '80%', ...props.style }} {...props}>{props.children}</Paper>
+    return <Paper elevation={3} style={{ width: props.width ? props.width : '27%', height: '85vh', ...props.style }} {...props}>{props.children}</Paper>
 }
 
 export function Paper2(props) {

@@ -129,7 +129,7 @@ export default function PupilPref(props) {
                 <Header>תלמידים</Header>
 
                 <SearchList items={props.pupils} current={current ? current.id : undefined} genderIcon={true}
-                    style={{ width: '80%', height: '85%' }}
+                    style={{ width: '80%' }}
 
                     onSelect={(id) => selectPupil(id)}
                     onDoubleClick={() => { }}
